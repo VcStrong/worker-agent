@@ -67,14 +67,7 @@ class Builder:
     def __init__(self, args):
         self.args = args
         self.mm = common.load_merge_map()
-        ex = common.read_json(common.p("data", "experts.json"))
-        local_ex = common.read_json(os.path.join(common.LOCAL_DIR, "experts.json"), {}) or {}
-        ov = common.read_json(common.p("data", "roles_overlay.json"), {}) or {}
-        self.profiles = ex["tools_profiles"]
-        self.experts = {}
-        for slug in self.mm["experts"]:
-            base = ex["experts"].get(slug) or (ov.get("new_experts", {}).get(slug, {}).get("profile")) or {}
-            self.experts[slug] = deep_merge(base, (local_ex.get("experts") or {}).get(slug))
+        self.profiles, self.experts = common.load_experts()
         self.roles = {r["id"]: r for r in common.load_roles()}
         self.skills = common.load_skills()
         self.radar = common.radar_config()
@@ -162,10 +155,16 @@ class Builder:
         retired = self.mm["experts"][slug].get("retired")
         head = ""
         if retired:
-            head = "【已下线，改找 %s】" % retired.get("replacement", "总控")
-        desc = ("%s%s。什么时候用我：%s 合并了原始岗位：%s——用这些旧岗位名提的活也找我。"
+            head = "【已下线，改找 %s】" % self.display(retired.get("replacement", "orchestrator"))
+        if raw_names:
+            merged_txt = "合并了原始岗位：%s——用这些旧岗位名提的活也找我。" % "、".join(raw_names)
+        elif retired:
+            merged_txt = "原来合并的原始岗位已转给%s。" % self.display(retired.get("replacement", "orchestrator"))
+        else:
+            merged_txt = "新增专家，没有图谱原始岗位。"
+        desc = ("%s%s。什么时候用我：%s %s"
                 "主导阶段：%s。典型活儿：%s。高频术语：%s。" % (
-                    head, name, ex.get("summary", ""), "、".join(raw_names),
+                    head, name, ex.get("summary", ""), merged_txt,
                     stage_label(ex.get("lead_stages", [])), "、".join(ex.get("tasks", [])), "、".join(ex.get("terms", []))))
         desc = desc.replace("\n", " ")
         while len(desc) > 1000 and ex.get("terms"):
@@ -260,7 +259,8 @@ class Builder:
             "retired_notice": ("\n> ⛔ 本角色已下线（%s），替代角色：%s。总控不要再选我。\n" % (
                 retired.get("reason", ""), self.display(retired.get("replacement", "")))) if retired else "",
             "suite": self.suite, "home": self.args.home, "summary": ex.get("summary", ""),
-            "merged_roles": "\n".join(merged_lines) or "- （新增专家，无图谱原始岗位）",
+            "merged_roles": "\n".join(merged_lines) or ("- （已下线，原来合并的原始岗位已转给「%s」）" % self.display(retired.get("replacement", ""))
+                                                         if retired else "- （新增专家，无图谱原始岗位）"),
             "lead_stages": stage_label(ex.get("lead_stages", [])), "stages": stage_label(ex.get("stages", [])),
             "duties": bullets(ex.get("duties", [])), "outputs": "\n".join(outputs) or "- （无）",
             "upstream": "、".join(self.display(x) for x in ex.get("upstream", [])),

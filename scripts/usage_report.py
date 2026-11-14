@@ -70,6 +70,9 @@ def build_report(extra_dirs=()):
             recs = fallback + [r for r in recs if r.get("kind") == "skill"]
             source = "log.md"
             notice = "hook 未生效（usage/usage.jsonl 没有角色调用记录），已退回从 workspace 的 log.md 统计"
+        else:
+            source = "none"
+            notice = "hook 没有任何角色调用记录（hook 未生效，或安装后还没调用过角色），workspace 的 log.md 里也没有记录"
     roles = {}
     for slug, info in common.active_experts(mm).items():
         mounted = [s for s in skills.values() if slug in (s["meta"].get("roles") or [])]
@@ -94,11 +97,15 @@ def build_report(extra_dirs=()):
             x["needs"].add(r["need"])
         if r.get("project"):
             x["projects"].add(r["project"])
-    ranked = sorted(roles.values(), key=lambda x: (-x["count"], x["oldest_as_of"], x["slug"]))
+    has_data = any(x["count"] for x in roles.values())
+    if has_data:
+        ranked = sorted(roles.values(), key=lambda x: (-x["count"], x["oldest_as_of"], x["slug"]))
+    else:  # 没有使用数据：按角色名排序
+        ranked = sorted(roles.values(), key=lambda x: (x["name"], x["slug"]))
     sk = sorted(skl.values(), key=lambda x: (-x["count"], x["id"]))
     for x in ranked + sk:
         x["needs"], x["projects"] = sorted(x["needs"]), sorted(x["projects"])
-    return {"source": source, "notice": notice, "has_data": any(x["count"] for x in ranked), "roles": ranked, "skills": sk}
+    return {"source": source, "notice": notice, "has_data": has_data, "roles": ranked, "skills": sk}
 
 
 def render(rep):

@@ -23,6 +23,9 @@ def known():
     try:
         mm = json.load(open(os.path.join(ROOT, "data", "merge_map.json"), encoding="utf-8"))
         roles = set(mm["experts"]) | {"orchestrator", "tech-scout"}
+        ovp = os.path.join(ROOT, "data", "roles_overlay.json")
+        if os.path.exists(ovp):
+            roles |= set((json.load(open(ovp, encoding="utf-8")).get("new_experts") or {}).keys())
     except Exception:
         roles = set()
     skills = {"who", "skills-refresh", "orchestrate"}

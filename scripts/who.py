@@ -169,6 +169,11 @@ class Who:
         return {"found": True, "query": q, "results": results}
 
 
+def self_name(slug):
+    mm = common.load_merge_map()
+    return mm["experts"].get(slug, {}).get("name", slug)
+
+
 def index_first(text):
     for line in text.splitlines():
         line = line.strip().lstrip("-* ").strip()
@@ -186,7 +191,8 @@ def render(res):
         if t == "expert":
             print("🧑‍💼 专家：%s（%s%s）" % (r["name"], r["slug"], "，model " + r["model"] if r.get("model") else ""))
             if r.get("retired"):
-                print("   ⛔ 已下线，替代：%s" % r["retired"].get("replacement"))
+                rep_slug = r["retired"].get("replacement", "")
+                print("   ⛔ 已下线，替代：%s（%s）" % (self_name(rep_slug), rep_slug))
             print("   定位：%s" % r.get("summary"))
             if r.get("lead_stages"):
                 print("   主导阶段：%s；参与：%s" % (r["lead_stages"], r.get("stages")))

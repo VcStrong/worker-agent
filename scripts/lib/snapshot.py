@@ -7,7 +7,8 @@ import subprocess
 import common
 
 SNAP_DIRS = ["data/skills", "agents", "skills", "local", "data/merge_map.json", "data/roles_overlay.json",
-             "data/experts.json", "config/radar.yaml", "skills.lock"]
+             "data/experts.json", "config/radar.yaml", "config/team.yaml", "workflow/stages.md",
+             "scripts/eval_routing/cases.json", "scripts/eval_skills/cases.json", "skills.lock"]
 
 
 def is_git():

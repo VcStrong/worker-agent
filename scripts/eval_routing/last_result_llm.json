@@ -1,0 +1,385 @@
+{
+  "hit_rate": 0.9761904761904762,
+  "mode": "llm(claude -p --model haiku)",
+  "ts": "2026-11-15T00:33:03+08:00",
+  "results": [
+    {
+      "task": "给登录页加埋点方案",
+      "expect": "data-growth",
+      "got": "data-growth",
+      "top3": [
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "写一份会员积分商城的 PRD，含用户故事和验收标准",
+      "expect": "product-manager",
+      "got": "product-manager",
+      "top3": [
+        "product-manager"
+      ],
+      "ok": true
+    },
+    {
+      "task": "做一下短视频赛道的竞品分析和用户访谈",
+      "expect": "product-manager",
+      "got": "product-manager",
+      "top3": [
+        "product-manager"
+      ],
+      "ok": true
+    },
+    {
+      "task": "让用户研究员设计一轮可用性测试",
+      "expect": "product-manager",
+      "got": "product-manager",
+      "top3": [
+        "product-manager"
+      ],
+      "ok": true
+    },
+    {
+      "task": "画签到页面的交互原型，标清异常态",
+      "expect": "ux-designer",
+      "got": "ux-designer",
+      "top3": [
+        "ux-designer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "整理设计 Token，搭一套组件库规范",
+      "expect": "ux-designer",
+      "got": "ux-designer",
+      "top3": [
+        "ux-designer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "请 UI 设计师出一版视觉稿标注",
+      "expect": "ux-designer",
+      "got": "ux-designer",
+      "top3": [
+        "ux-designer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "评审一下这个服务拆分的技术方案，出 ADR",
+      "expect": "architect",
+      "got": "architect",
+      "top3": [
+        "architect"
+      ],
+      "ok": true
+    },
+    {
+      "task": "消息队列和缓存中间件怎么选型，做容量评估",
+      "expect": "architect",
+      "got": "architect",
+      "top3": [
+        "architect"
+      ],
+      "ok": true
+    },
+    {
+      "task": "请技术总监拍板一下技术选型",
+      "expect": "architect",
+      "got": "architect",
+      "top3": [
+        "architect"
+      ],
+      "ok": true
+    },
+    {
+      "task": "用 React 写一个 H5 活动页，优化首屏和 Web Vitals",
+      "expect": "frontend-engineer",
+      "got": "frontend-engineer",
+      "top3": [
+        "frontend-engineer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "管理后台的 Vue 页面联调接口",
+      "expect": "frontend-engineer",
+      "got": "frontend-engineer",
+      "top3": [
+        "frontend-engineer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "Android 的包体积涨了 5MB，排查一下",
+      "expect": "client-engineer",
+      "got": "client-engineer",
+      "top3": [
+        "client-engineer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "做一个鸿蒙版本，用 ArkTS 实现签到页",
+      "expect": "client-engineer",
+      "got": "client-engineer",
+      "top3": [
+        "client-engineer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "iOS 上 SwiftUI 列表卡顿，崩溃率也上升了",
+      "expect": "client-engineer",
+      "got": "client-engineer",
+      "top3": [
+        "client-engineer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "请 DBA 看下这条慢 SQL",
+      "expect": "backend-engineer",
+      "got": "backend-engineer",
+      "top3": [
+        "backend-engineer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "写签到积分的后端接口，保证幂等和事务",
+      "expect": "backend-engineer",
+      "got": "backend-engineer",
+      "top3": [
+        "backend-engineer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "让数据开发把埋点入仓，建数仓分层和 ETL 任务",
+      "expect": "backend-engineer",
+      "got": "backend-engineer",
+      "top3": [
+        "backend-engineer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "给积分接口写测试用例并做回归测试",
+      "expect": "qa-expert",
+      "got": "qa-expert",
+      "top3": [
+        "qa-expert"
+      ],
+      "ok": true
+    },
+    {
+      "task": "做一轮压测和兼容性测试，出测试报告",
+      "expect": "qa-expert",
+      "got": "qa-expert",
+      "top3": [
+        "qa-expert"
+      ],
+      "ok": true
+    },
+    {
+      "task": "请测试开发搭接口自动化框架，接 Playwright E2E",
+      "expect": "qa-expert",
+      "got": "qa-expert",
+      "top3": [
+        "qa-expert"
+      ],
+      "ok": true
+    },
+    {
+      "task": "出上线方案：灰度放量节奏和回滚预案",
+      "expect": "sre-security",
+      "got": "sre-security",
+      "top3": [
+        "sre-security"
+      ],
+      "ok": true
+    },
+    {
+      "task": "配置 SLO 监控告警，处理线上漏洞和密钥泄露",
+      "expect": "sre-security",
+      "got": "sre-security",
+      "top3": [
+        "sre-security"
+      ],
+      "ok": true
+    },
+    {
+      "task": "请安全工程师做一次渗透和安全评审",
+      "expect": "sre-security",
+      "got": "sre-security",
+      "top3": [
+        "sre-security"
+      ],
+      "ok": true
+    },
+    {
+      "task": "让用户运营设计召回活动",
+      "expect": "data-growth",
+      "got": "data-growth",
+      "top3": [
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "分析一下次日留存下降的原因，做漏斗分析和 AB 实验",
+      "expect": "data-growth",
+      "got": "data-growth",
+      "top3": [
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "客服话术和 FAQ 整理一下",
+      "expect": "data-growth",
+      "got": "data-growth",
+      "top3": [
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "这个需求要不要用 AI？做 AI 机会评估",
+      "expect": "ai-product-manager",
+      "got": "ai-product-manager",
+      "top3": [
+        "ai-product-manager"
+      ],
+      "ok": true
+    },
+    {
+      "task": "设计 Agent 产品形态和 AI 体验，估算大模型成本",
+      "expect": "ai-product-manager",
+      "got": "ai-product-manager",
+      "top3": [
+        "ai-product-manager"
+      ],
+      "ok": true
+    },
+    {
+      "task": "请 AI 解决方案架构师给个大模型选型建议",
+      "expect": "ai-product-manager",
+      "got": "ai-product-manager",
+      "top3": [
+        "ai-product-manager"
+      ],
+      "ok": true
+    },
+    {
+      "task": "加一个 AI 客服，基于知识库做 RAG 问答",
+      "expect": "ai-app-engineer",
+      "got": "ai-app-engineer",
+      "top3": [
+        "ai-app-engineer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "用 MCP 给 Agent 接工具调用，做 Function Calling",
+      "expect": "ai-app-engineer",
+      "got": "ai-app-engineer",
+      "top3": [
+        "ai-app-engineer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "请 RAG 工程师优化混合检索和重排",
+      "expect": "ai-app-engineer",
+      "got": "ai-app-engineer",
+      "top3": [
+        "ai-app-engineer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "首页推荐算法的 CTR 掉了，看下召回和精排",
+      "expect": "model-algorithm-engineer",
+      "got": "model-algorithm-engineer",
+      "top3": [
+        "model-algorithm-engineer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "用 LoRA 微调一个客服模型，准备 SFT 数据",
+      "expect": "model-algorithm-engineer",
+      "got": "model-algorithm-engineer",
+      "top3": [
+        "model-algorithm-engineer"
+      ],
+      "ok": true
+    },
+    {
+      "task": "请语音算法工程师接入 ASR 和 TTS",
+      "expect": "model-algorithm-engineer",
+      "got": "ai-app-engineer",
+      "top3": [
+        "ai-app-engineer"
+      ],
+      "ok": false
+    },
+    {
+      "task": "用 vLLM 自部署推理服务，做模型量化和 GPU 规划",
+      "expect": "ai-infra-mlops",
+      "got": "ai-infra-mlops",
+      "top3": [
+        "ai-infra-mlops"
+      ],
+      "ok": true
+    },
+    {
+      "task": "搭模型网关做多模型路由，监控推理成本",
+      "expect": "ai-infra-mlops",
+      "got": "ai-infra-mlops",
+      "top3": [
+        "ai-infra-mlops"
+      ],
+      "ok": true
+    },
+    {
+      "task": "请 MLOps 工程师搭模型注册和发布流水线",
+      "expect": "ai-infra-mlops",
+      "got": "ai-infra-mlops",
+      "top3": [
+        "ai-infra-mlops"
+      ],
+      "ok": true
+    },
+    {
+      "task": "做大模型评测集，测幻觉率和越狱",
+      "expect": "ai-eval-compliance",
+      "got": "ai-eval-compliance",
+      "top3": [
+        "ai-eval-compliance"
+      ],
+      "ok": true
+    },
+    {
+      "task": "生成式 AI 功能上线前的备案和生成内容标识合规",
+      "expect": "ai-eval-compliance",
+      "got": "ai-eval-compliance",
+      "top3": [
+        "ai-eval-compliance"
+      ],
+      "ok": true
+    },
+    {
+      "task": "请法务看下用户协议和隐私政策的个人信息合规",
+      "expect": "ai-eval-compliance",
+      "got": "ai-eval-compliance",
+      "top3": [
+        "ai-eval-compliance"
+      ],
+      "ok": true
+    }
+  ]
+}

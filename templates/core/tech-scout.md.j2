@@ -17,8 +17,8 @@ model: {{ model }}
 
 ## 侦察范围
 
-1. 读 `{{ home }}/config/sources.yaml`。范围 = 用户选中的角色（slug 或中文名）/ 领域；**只侦察这些角色相关的信息源**。没指定时按 `python3 {{ home }}/scripts/usage_report.py --json` 的使用度排行取前 3 个过期或最旧的角色，并先说明。
-2. 读这些角色挂载的技能包（`{{ home }}/data/skills/`，`python3 {{ home }}/scripts/who.py <角色名>` 可列出），了解现有成熟度、版本和 as_of。
+1. 读 `{{ home }}/config/sources.yaml`。范围 = 用户选中的角色（slug 或中文名）/ 领域；**只侦察这些角色相关的信息源**。范围由主会话（/skills-refresh）交给你；没给范围时不要自己定，交回主会话请用户按使用度排行选。
+2. 读这些角色挂载的技能包（用 Grep 在 `{{ home }}/data/skills/` 里搜 `roles:` 含该角色 slug 的文件），了解现有成熟度、版本和 as_of。
 3. 读 `{{ home }}/proposals/rejected.jsonl`：以前被驳回的变化，没有新证据不重复提出。
 
 ## 核实规则
@@ -35,6 +35,6 @@ model: {{ model }}
 
 ## 提案格式
 
-写到 `{{ home }}/proposals/<YYYY-MM-DD>-<领域或角色>.md`，严格按 `{{ home }}/proposals/README.md` 的格式（每条一个 `### <编号> <标题>` + 一个 yaml 代码块，status 写「待拍板」或「待核实」）。小改动（只改 as_of、补来源链接、修错别字，不改变推荐结论）标 `trivial: true`。
+写到 `{{ home }}/proposals/<YYYY-MM-DD>-<领域或角色>.md`，第一行写 `<!-- source: tech-scout YYYY-MM-DD -->`（更新提醒靠它识别侦察时间），然后严格按 `{{ home }}/proposals/README.md` 的格式（每条一个 `### <编号> <标题>` + 一个 yaml 代码块，status 写「待拍板」或「待核实」）。小改动（只改 as_of、补来源链接、修错别字，不改变推荐结论）标 `trivial: true`。
 
-提案写完后：运行 `python3 {{ home }}/scripts/apply_proposal.py <提案文件> --check` 自检格式，然后告诉用户：一共几条、需要拍板的条目、待核实的条目、失败的信息源，以及拍板方式（`apply_proposal.py <提案> --approve 编号,编号 --reject 编号`）。最后运行 `python3 {{ home }}/scripts/refresh_check.py --mark-refreshed` 记录本次侦察时间。
+提案写完后，把提案路径交回主会话（你没有 Bash，不自己跑脚本）：主会话的 /skills-refresh 会运行 `apply_proposal.py <提案> --check` 自检格式，并运行 `refresh_check.py --mark-refreshed` 记录本次侦察时间（不论之后提案通过还是被驳回）。交回时说明：一共几条、需要拍板的条目、待核实的条目、可疑来源、失败的信息源。

@@ -236,3 +236,26 @@ def expert_roles(mm, slug):
 
 def warn(msg):
     print("⚠️  " + msg, file=sys.stderr)
+
+
+def load_experts():
+    """专家档案：data/experts.json + roles_overlay.new_experts[*].profile + local/experts.json（后者优先）。
+    返回 (tools_profiles, {slug: profile})。"""
+    ex = read_json(os.path.join(DATA, "experts.json"))
+    ov = read_json(os.path.join(DATA, "roles_overlay.json"), {}) or {}
+    local = read_json(os.path.join(LOCAL_DIR, "experts.json"), {}) or {}
+    out = dict(ex["experts"])
+    for slug, spec in (ov.get("new_experts") or {}).items():
+        if spec.get("profile"):
+            out[slug] = spec["profile"]
+    for slug, over in (local.get("experts") or {}).items():
+        if slug in out:
+            out[slug] = _deep_merge(out[slug], over)
+    return ex["tools_profiles"], out
+
+
+def _deep_merge(base, over):
+    res = dict(base)
+    for k, v in (over or {}).items():
+        res[k] = _deep_merge(res[k], v) if isinstance(v, dict) and isinstance(res.get(k), dict) else v
+    return res

@@ -130,7 +130,7 @@ def check_agents(rep, agents_dir, mm, team, run):
 
 def check_tools(rep, where, name, tools):
     profile = None
-    experts = common.read_json(common.p("data", "experts.json"))["experts"]
+    experts = common.load_experts()[1]
     if name in experts:
         profile = experts[name].get("tools_profile", "doc")
     for t in tools:
@@ -194,12 +194,11 @@ def check_merge_map(rep, mm):
     for slug in mm["experts"]:
         if not NAME_RE.match(slug):
             rep.err(where, "专家 slug 不合法：%s" % slug)
-        if not common.expert_roles(mm, slug) and not mm["experts"][slug].get("overlay"):
+        if not common.expert_roles(mm, slug) and not mm["experts"][slug].get("overlay") and not mm["experts"][slug].get("retired"):
             rep.warn(where, "专家 %s 没有合并任何原始岗位" % slug)
-    experts = common.read_json(common.p("data", "experts.json"))["experts"]
-    ov = common.read_json(common.p("data", "roles_overlay.json"), {}) or {}
+    experts = common.load_experts()[1]
     for slug in mm["experts"]:
-        if slug not in experts and not (ov.get("new_experts", {}).get(slug, {}).get("profile")):
+        if slug not in experts:
             rep.err("data/experts.json", "缺少专家档案：%s" % slug)
 
 

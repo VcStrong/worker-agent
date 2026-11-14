@@ -51,6 +51,12 @@ def parse(path):
             continue
         data = miniyaml.loads(m.group(1)) or {}
         md = re.search(r"```markdown\n(.*?)\n```\s*$", chunk[m.end():], re.S) or re.search(r"```markdown\n(.*?)\n```", chunk[m.end():], re.S)
+        js = re.search(r"```json\n(.*?)\n```", chunk[m.end():], re.S)
+        if js:
+            try:
+                data.update(json.loads(js.group(1)))
+            except ValueError as e:
+                data["_json_error"] = str(e)
         items.append({"id": h.group(1), "title": h.group(2).strip(), "data": data,
                       "content": md.group(1) + "\n" if md else None,
                       "yaml_span": (h.end() + m.start(1), h.end() + m.end(1))})
@@ -113,11 +119,77 @@ def check_items(items):
             for k in ("source_need", "role", "text"):
                 if not d.get(k):
                     errs.append("%s：经验条目缺少 %s" % (w, k))
+        if d.get("_json_error"):
+            errs.append("%s：json 代码块解析失败：%s" % (w, d["_json_error"]))
+        if act == "new_role":
+            errs += check_new_role(w, d, items)
+        if act == "retire_role":
+            for k in ("slug", "replacement"):
+                if not d.get(k):
+                    errs.append("%s：retire_role 缺少 %s" % (w, k))
         key = dedupe_key(d)
         for r in rejected:
             if r["key"] == key and not (set(ev) - set(r.get("evidence") or [])):
                 warns.append("%s：和以前驳回的 %s 重复且没有新证据，不应重复提出" % (w, r["id"]))
     return errs, warns
+
+
+PROFILE_KEYS = ["tools_profile", "lead_stages", "stages", "summary", "duties", "outputs", "upstream", "downstream",
+                "standards", "boundaries", "tasks", "terms"]
+
+
+def check_new_role(w, d, items):
+    """新增专家必须一次带齐：档案、合并来源、≥2 条选角用例、≥3 条技能回归题、≥5 个挂载技能，超编时给合并 / 下线方案。"""
+    errs = []
+    slug = d.get("slug", "")
+    if not re.match(r"^[a-z0-9]+(-[a-z0-9]+)*$", slug):
+        errs.append("%s：slug 不合法：%r" % (w, slug))
+    if slug in common.load_merge_map()["experts"]:
+        errs.append("%s：专家 %s 已存在" % (w, slug))
+    if not d.get("name"):
+        errs.append("%s：缺少 name" % w)
+    prof = d.get("profile") or {}
+    miss = [k for k in PROFILE_KEYS if not prof.get(k)]
+    if miss:
+        errs.append("%s：profile 缺少 %s（格式同 data/experts.json）" % (w, "、".join(miss)))
+    tp = prof.get("tools_profile")
+    if tp and tp not in common.load_experts()[0]:
+        errs.append("%s：tools_profile 不存在：%s" % (w, tp))
+    rc = [c for c in d.get("routing_cases") or [] if c.get("expect") == slug and c.get("task")]
+    if len(rc) < 2:
+        errs.append("%s：routing_cases 至少 2 条（task → expect: %s）" % (w, slug))
+    sc = [c for c in d.get("skill_cases") or [] if c.get("id") and c.get("scenario")]
+    if len(sc) < 3:
+        errs.append("%s：skill_cases 至少 3 条（id、scenario、expect_adopt / agent_contains…，role 会自动填为 %s）" % (w, slug))
+    mounted = set(d.get("mount_skills") or [])
+    for x in items:
+        xd = x["data"]
+        if xd.get("action") == "add_skill" and x["content"]:
+            meta, _ = common.split_frontmatter(x["content"])
+            if slug in ((meta or {}).get("roles") or []):
+                mounted.add(meta.get("id"))
+    known = set(common.load_skills())
+    for sid in d.get("mount_skills") or []:
+        if sid not in known:
+            errs.append("%s：mount_skills 里的技能不存在：%s" % (w, sid))
+    if len(mounted) < 5:
+        errs.append("%s：新专家至少挂 5 个技能（mount_skills + 同一提案里 roles 含 %s 的 add_skill），现在 %d 个" % (w, slug, len(mounted)))
+    team = common.team_config()
+    mm = common.load_merge_map()
+    active = [r for r in team.get("enabled") or [] if r in mm["experts"] and not mm["experts"][r].get("retired")]
+    if len(active) + 2 > int(team.get("role_cap", 15)):
+        rom = d.get("retire_or_merge") or {}
+        if not rom.get("slug"):
+            errs.append("%s：新增后编制 %d 超过 role_cap=%s，必须给出 retire_or_merge: {slug, replacement, reason}" % (
+                w, len(active) + 2, team.get("role_cap", 15)))
+    rom = d.get("retire_or_merge") or {}
+    if rom.get("slug"):
+        if rom["slug"] not in mm["experts"]:
+            errs.append("%s：retire_or_merge.slug 不存在：%s" % (w, rom["slug"]))
+        rep = rom.get("replacement") or slug
+        if rep != slug and rep not in mm["experts"]:
+            errs.append("%s：retire_or_merge.replacement 不存在：%s（可以写新专家自己 %s）" % (w, rep, slug))
+    return errs
 
 
 # ---------------- 应用 ----------------
@@ -243,38 +315,134 @@ def apply_lesson(it, log):
 
 def apply_role(it, log):
     d, pid = it["data"], it["id"]
-    ov_path = common.p("data", "roles_overlay.json")
-    ov = common.read_json(ov_path, {}) or {}
-    ov.setdefault("add_roles", [])
-    ov.setdefault("merge", {})
-    ov.setdefault("new_experts", {})
-    ov.setdefault("retire", {})
     act = d["action"]
     if act == "merge_role":
+        ov = load_overlay()
         role = dict(d.get("role_def") or {})
         role.setdefault("id", d.get("role"))
         role["target"] = d["target"]
         role["proposal"] = pid
         ov["add_roles"] = [r for r in ov["add_roles"] if r["id"] != role["id"]] + [role]
+        save_overlay(ov)
         log.append("新岗位 %s 并入 %s（%s）" % (role["id"], d["target"], pid))
     elif act == "new_role":
-        slug = d["slug"]
-        team = common.team_config()
-        enabled = len([r for r in team.get("enabled") or []]) + 1
-        if enabled + 1 > int(team.get("role_cap", 15)) and not d.get("retire_or_merge"):
-            raise RuntimeError("%s：新增专家会超过 role_cap，提案必须同时给出合并或下线方案（retire_or_merge）" % pid)
-        ov["new_experts"][slug] = {"name": d["name"], "kind": d.get("kind", "traditional"), "model": d.get("model", "sonnet"),
-                                   "overlay": True, "proposal": pid, "profile": d.get("profile") or {}}
-        if d.get("role_def"):
-            role = dict(d["role_def"])
-            role["target"] = slug
-            ov["add_roles"] = [r for r in ov["add_roles"] if r["id"] != role["id"]] + [role]
-        add_enabled(slug)
-        log.append("新增专家 %s（%s）；请补选角评测用例和技能回归题" % (slug, pid))
+        apply_new_role(d, pid, log)
     elif act == "retire_role":
-        ov["retire"][d["slug"]] = {"replacement": d["replacement"], "reason": d.get("reason", ""), "proposal": pid}
-        log.append("下线专家 %s，替代 %s（%s）" % (d["slug"], d["replacement"], pid))
-    common.write_json(ov_path, ov)
+        retire(d["slug"], d["replacement"], d.get("reason", ""), pid, log)
+
+
+def load_overlay():
+    ov = common.read_json(common.p("data", "roles_overlay.json"), {}) or {}
+    for k, v in (("add_roles", []), ("merge", {}), ("new_experts", {}), ("retire", {})):
+        ov.setdefault(k, v)
+    return ov
+
+
+def save_overlay(ov):
+    common.write_json(common.p("data", "roles_overlay.json"), ov)
+
+
+def apply_new_role(d, pid, log):
+    """REQ-025：新增专家一次落地——覆盖层档案、合并来源、编制、阶段矩阵、选角评测集、技能回归题、挂载技能。"""
+    slug = d["slug"]
+    rom = d.get("retire_or_merge") or {}
+    ov = load_overlay()
+    ov["new_experts"][slug] = {"name": d["name"], "kind": d.get("kind", "traditional"), "model": d.get("model", "sonnet"),
+                               "overlay": True, "proposal": pid, "profile": d["profile"]}
+    roles = d.get("role_defs") or ([d["role_def"]] if d.get("role_def") else [])
+    for r in roles:
+        r = dict(r, target=slug, proposal=pid)
+        ov["add_roles"] = [x for x in ov["add_roles"] if x["id"] != r["id"]] + [r]
+    for rid in d.get("merge_from") or []:  # 原始岗位改挂到新专家
+        ov["merge"][rid] = {"target": slug, "proposal": pid}
+    save_overlay(ov)
+    # 新专家写进覆盖层之后再下线旧角色：replacement 可以是新专家自己（默认就是）
+    if rom.get("slug"):
+        retire(rom["slug"], rom.get("replacement") or slug, rom.get("reason", "为新增专家 %s 腾编制" % slug), pid, log)
+    add_enabled(slug)
+    # 挂载已有技能
+    for sid in d.get("mount_skills") or []:
+        path = skill_path(sid)
+        meta = common.split_frontmatter(open(path, encoding="utf-8").read())[0]
+        if slug not in (meta.get("roles") or []):
+            rewrite_skill(path, {"roles": list(meta.get("roles") or []) + [slug]}, "提案 %s：挂载到新专家 %s" % (pid, slug), minor=False)
+    # 评测集与回归题
+    rp = common.p("scripts", "eval_routing", "cases.json")
+    rdata = common.read_json(rp)
+    for c in d.get("routing_cases") or []:
+        rdata["cases"].append(dict(c, proposal=pid))
+    common.write_json(rp, rdata)
+    sp = common.p("scripts", "eval_skills", "cases.json")
+    sdata = common.read_json(sp)
+    for c in d.get("skill_cases") or []:
+        sdata["cases"].append(dict(c, role=slug, proposal=pid))
+    common.write_json(sp, sdata)
+    # 阶段 × 角色矩阵
+    prof = d["profile"]
+    stage_note("- 新增专家 %s（`%s`）：主导 %s；参与 %s（提案 %s）" % (
+        d["name"], slug, "、".join("%02d" % n for n in prof.get("lead_stages", [])),
+        "、".join("%02d" % n for n in prof.get("stages", [])), pid))
+    log.append("新增专家 %s（%s）：挂载技能 %d 个、选角用例 %d 条、回归题 %d 条" % (
+        slug, pid, len(d.get("mount_skills") or []), len(d.get("routing_cases") or []), len(d.get("skill_cases") or [])))
+
+
+def retire(slug, replacement, reason, pid, log):
+    mm = common.load_merge_map()
+    if slug not in mm["experts"] or replacement not in mm["experts"]:
+        raise RuntimeError("%s：下线 / 替代角色不存在：%s → %s" % (pid, slug, replacement))
+    ov = load_overlay()
+    ov["retire"][slug] = {"replacement": replacement, "reason": reason, "proposal": pid}
+    # 原始岗位改由替代角色承担（agent 文件保留到下一个大版本，description 写明替代）
+    for rid, m in sorted(mm["map"].items()):
+        also = list(m.get("also") or [])
+        if m.get("target") != slug and slug not in also:
+            continue
+        new = dict(m)
+        new.pop("overlay", None)
+        if m.get("target") == slug:
+            new["target"], new["from"] = replacement, slug
+        also = [replacement if a == slug else a for a in also]
+        also = [a for i, a in enumerate(also) if a != new["target"] and a not in also[:i]]
+        if also:
+            new["also"] = also
+        else:
+            new.pop("also", None)
+        new["proposal"] = pid
+        ov["merge"][rid] = new
+    save_overlay(ov)
+    # 被下线角色挂的技能转挂到替代角色
+    moved = 0
+    for sid, sk in common.load_skills(include_local=False).items():
+        roles = sk["meta"].get("roles") or []
+        if slug in roles and replacement not in roles:
+            rewrite_skill(sk["path"], {"roles": roles + [replacement]}, "提案 %s：%s 下线，转挂 %s" % (pid, slug, replacement), minor=False)
+            moved += 1
+    # 期望该角色的选角用例改为替代角色；它的回归题标记下线（评测跳过）
+    rp = common.p("scripts", "eval_routing", "cases.json")
+    rdata = common.read_json(rp)
+    for c in rdata["cases"]:
+        if c.get("expect") == slug:
+            c["expect"], c["retired_from"] = replacement, slug
+        if slug in (c.get("also_ok") or []):
+            c["also_ok"] = [x for x in c["also_ok"] if x != slug] + [replacement]
+    common.write_json(rp, rdata)
+    sp = common.p("scripts", "eval_skills", "cases.json")
+    sdata = common.read_json(sp)
+    for c in sdata["cases"]:
+        if c.get("role") == slug:
+            c["retired"] = True
+    common.write_json(sp, sdata)
+    stage_note("- 下线专家 `%s`，改由 `%s` 承担（提案 %s）：%s" % (slug, replacement, pid, reason))
+    log.append("下线专家 %s，替代 %s（%s），转挂技能 %d 个" % (slug, replacement, pid, moved))
+
+
+def stage_note(line):
+    path = common.p("workflow", "stages.md")
+    text = open(path, encoding="utf-8").read()
+    head = "## 覆盖层调整（roles_overlay.json，总控选角时一并考虑）"
+    if head not in text:
+        text = text.rstrip() + "\n\n" + head + "\n\n"
+    common.write_text(path, text.rstrip() + "\n" + line + "\n")
 
 
 def add_enabled(slug):
@@ -305,25 +473,14 @@ def run_evals():
 
 
 def regressions(before, after):
-    out = []
-    if after["routing"] < before["routing"]:
-        prev_ok = {r["task"] for r in before["routing_results"] if r["ok"]}
-        for r in after["routing_results"]:
-            if not r["ok"] and r["task"] in prev_ok:
-                out.append("选角退化：%s 期望 %s 得到 %s" % (r["task"], r["expect"], r["got"]))
-        out.insert(0, "选角命中率 %.1f%% → %.1f%%" % (before["routing"] * 100, after["routing"] * 100))
-    if after["skills"] < before["skills"]:
-        prev_ok = {r["id"] for r in before["skills_results"] if r["ok"]}
-        for r in after["skills_results"]:
-            if not r["ok"] and r["id"] in prev_ok:
-                out.append("技能题退化：%s %s（%s）" % (r["id"], r["scenario"], r["why"]))
-        out.insert(0, "技能题通过率 %.1f%% → %.1f%%" % (before["skills"] * 100, after["skills"] * 100))
-    return out
+    import regress
+    return regress.compare(before["routing_results"], after["routing_results"], before["routing"], after["routing"], "routing") + \
+        regress.compare(before["skills_results"], after["skills_results"], before["skills"], after["skills"], "skills")
 
 
 def backup_tree():
     tmp = tempfile.mkdtemp(prefix="role-agents-apply-")
-    for rel in snapshot.SNAP_DIRS + ["config/team.yaml"]:
+    for rel in snapshot.SNAP_DIRS:
         src = common.p(rel)
         if os.path.isdir(src):
             shutil.copytree(src, os.path.join(tmp, rel))
@@ -334,7 +491,7 @@ def backup_tree():
 
 
 def restore_tree(tmp):
-    for rel in snapshot.SNAP_DIRS + ["config/team.yaml"]:
+    for rel in snapshot.SNAP_DIRS:
         src, dst = os.path.join(tmp, rel), common.p(rel)
         if os.path.isdir(dst):
             shutil.rmtree(dst)
@@ -415,7 +572,8 @@ def main(argv=None):
     before = run_evals()
     log = []
     try:
-        for it in to_apply:
+        order = {"retire_role": 0, "merge_role": 1, "new_role": 1, "add_skill": 2}
+        for it in sorted(to_apply, key=lambda x: order.get(x["data"].get("action"), 3)):
             apply_item(it, log)
         rc, out = sh(os.path.join(HERE, "build.py"), "--quiet")
         if rc != 0:

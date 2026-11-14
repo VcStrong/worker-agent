@@ -34,10 +34,24 @@ def save_state(st):
 
 
 def last_refresh(st):
-    if st.get("last_refresh"):
-        return common.parse_date(st["last_refresh"])
+    """取最近一次：--mark-refreshed 记录、skills.lock 快照日期、情报员提案文件日期。
+    提案文件只认第一行带 `<!-- source: tech-scout -->` 标记的（手写提案、测试文件不算），日期晚于今天的忽略。"""
+    import glob
+    import re
+    cands = [common.parse_date(st.get("last_refresh") or "")]
     lock = common.read_json(common.p("skills.lock"), {}) or {}
-    return common.parse_date(lock.get("created") or "") or None
+    cands.append(common.parse_date(lock.get("created") or ""))
+    for f in glob.glob(common.p("proposals", "*.md")):
+        m = re.match(r"(\d{4}-\d{2}-\d{2})-", os.path.basename(f))
+        if not m:
+            continue
+        with open(f, encoding="utf-8") as fh:
+            if "<!-- source: tech-scout" not in fh.readline():
+                continue
+        cands.append(common.parse_date(m.group(1)))
+    today = common.today()
+    cands = [c for c in cands if c and c <= today]
+    return max(cands) if cands else None
 
 
 def check(st):

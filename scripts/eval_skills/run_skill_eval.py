@@ -28,7 +28,9 @@ def adopt_block(agent_text):
 
 
 def evaluate(verbose=True):
-    cases = common.read_json(os.path.join(HERE, "cases.json"))["cases"]
+    mm = common.load_merge_map()
+    cases = [c for c in common.read_json(os.path.join(HERE, "cases.json"))["cases"]
+             if not c.get("retired") and not mm["experts"].get(c["role"], {}).get("retired")]
     skills = common.load_skills()
     radar = common.radar_config()
     results = []
@@ -83,7 +85,7 @@ def main():
     a = ap.parse_args()
     rate, results = evaluate(not a.quiet)
     if a.save:
-        common.write_json(os.path.join(HERE, "last_result.json"), {"pass_rate": round(rate, 4), "results": results})
+        common.write_json(os.path.join(HERE, "last_result.json"), {"pass_rate": rate, "results": results})
     return 0 if rate == 1 else 1
 
 

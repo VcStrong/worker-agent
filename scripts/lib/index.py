@@ -33,7 +33,7 @@ def split_name(n):
 class Index:
     def __init__(self):
         self.mm = common.load_merge_map()
-        self.experts = common.read_json(common.p("data", "experts.json"))["experts"]
+        self.experts = common.load_experts()[1]
         self.roles = {r["id"]: r for r in common.load_roles()}
         self.skills = common.load_skills()
         self.radar = common.radar_config()

@@ -35,8 +35,14 @@ DANGER = [
 ]
 
 
+SUITE_ROOTS = [os.path.join(ROOT, "agents"), os.path.join(ROOT, "data", "skills"), os.path.join(ROOT, "skills"),
+               os.path.join(ROOT, "local", "skills")]
+
+
 def protected_paths(cwd):
-    out = [os.path.join(ROOT, "agents") + os.sep, os.path.join(ROOT, "data", "skills") + os.sep]
+    """Write/Edit 与 Bash 共用的保护范围：worker-agent 的 agents/、data/skills/、skills/、local/skills/，
+    以及本套件装进项目 / 用户目录的 .claude 文件（manifest 登记的）。"""
+    out = list(SUITE_ROOTS)
     for base in (cwd, os.path.expanduser("~")):
         mf = os.path.join(base, ".claude", "role-agents", "manifest.json")
         try:
@@ -49,6 +55,96 @@ def protected_paths(cwd):
     return out
 
 
+def under(path, roots):
+    path = os.path.normpath(path)
+    for r in roots:
+        r = os.path.normpath(r)
+        if path == r or path.startswith(r + os.sep):
+            return r
+    return None
+
+
+WRITE_OPS = re.compile(
+    r"\bsed\b[^|;&]*\s-[a-z]*i|\btee\b|\bcp\b|\bmv\b|\brm\b|\brmdir\b|\btouch\b|\bln\b|\brsync\b|\bdd\b|\btruncate\b"
+    r"|\binstall\b|\bchmod\b|\bperl\b|\bpython3?\b|\bnode\b|\bruby\b|\bawk\b|\bed\b|\bex\b|\bvim?\b|\bnano\b"
+    r"|\bunzip\b|\btar\b|\bpatch\b|\bgit\s+(checkout|restore|apply|mv|rm|reset|stash|clean)\b|\bfind\b[^|;&]*-(delete|exec)")
+# 本套件自带、会写技能层的脚本（只认 worker-agent ROOT 下的，用户仓库里同名脚本不受影响）
+WRITER_SCRIPTS = [os.path.join(ROOT, "scripts", n) for n in
+                  ("apply_proposal.py", "build.py", "rollback.py", "install_helper.py", "extract.py", "settings_merge.py")] + \
+                 [os.path.join(ROOT, "install.sh")]
+READ_ONLY_SCRIPTS = [os.path.join(ROOT, "scripts", n) for n in ("who.py", "validate.py", "usage_report.py", "refresh_check.py")] + \
+                    [os.path.join(ROOT, "scripts", "eval_routing", "run_eval.py"), os.path.join(ROOT, "scripts", "eval_skills", "run_skill_eval.py")]
+SEGMENT = re.compile(r"[;&|]+|\n")
+TOKEN = re.compile(r"\"[^\"]*\"|'[^']*'|[^\s;&|<>()]+")
+PATHISH = re.compile(r"[~\w./\-]*(?:agents|skills|SKILL\.md)[\w./\-]*")
+
+
+def _unquote(t):
+    return t[1:-1] if len(t) >= 2 and t[0] == t[-1] and t[0] in "\"'" else t
+
+
+def _resolve(tok, d):
+    tok = os.path.expanduser(_unquote(tok))
+    return os.path.normpath(tok if os.path.isabs(tok) else os.path.join(d, tok))
+
+
+def _paths_in(token, d):
+    """token 本身以及 token 里出现的路径片段（如 python -c "open('…SKILL.md','w')"）解析成绝对路径。"""
+    out = [_resolve(token, d)]
+    raw = _unquote(token)
+    if raw != token or " " in raw or "(" in raw:
+        out += [_resolve(m, d) for m in PATHISH.findall(raw) if m]
+    return out
+
+
+def bash_touches_protected(cmd, cwd, in_subagent):
+    """逐段分析命令（跟踪 cd / pushd），把出现的路径按当时的工作目录解析成绝对路径再判断。
+    返回 None（放行）、"subagent"（子 agent 运行写技能层的脚本）或命中的保护目录。"""
+    roots = protected_paths(cwd)
+    d = os.path.abspath(cwd)
+    for seg in SEGMENT.split(cmd):
+        seg = seg.strip()
+        if not seg:
+            continue
+        toks = TOKEN.findall(seg)
+        if not toks:
+            continue
+        if toks[0] in ("cd", "pushd") and len(toks) > 1:
+            d = _resolve(toks[1], d)
+            continue
+        if in_subagent:
+            for t in toks:
+                for p in _paths_in(t, d):
+                    if p == ".claude" or "/.claude/agents" in p or "/.claude/skills" in p:
+                        roots = roots + [p]
+        # 内置脚本
+        resolved = [p for t in toks for p in _paths_in(t, d)]
+        writer = next((p for p in resolved if p in WRITER_SCRIPTS), None)
+        if writer:
+            if os.path.basename(writer) == "apply_proposal.py" and "--check" in toks:
+                continue
+            if in_subagent:
+                return "subagent"
+            continue
+        if any(p in READ_ONLY_SCRIPTS for p in resolved):
+            continue
+        # 重定向目标
+        for m in re.finditer(r"(?:^|[^0-9&>])>{1,2}\s*([^\s;&|]+)|\b[0-9]?>{1,2}\s*([^\s;&|&]+)", seg):
+            target = m.group(1) or m.group(2)
+            if not target or target.startswith("&") or target == "/dev/null":
+                continue
+            hit = under(_resolve(target, d), roots)
+            if hit:
+                return hit
+        # 写操作 + 受保护路径（含工作目录本身在保护目录里时的相对路径）
+        if WRITE_OPS.search(seg):
+            for p in resolved[1:] + ([d] if toks[0] in ("rm", "touch", "tee", "cp", "mv", "sed", "perl", "python", "python3") else []):
+                hit = under(p, roots)
+                if hit:
+                    return hit
+    return None
+
+
 def decide(evt):
     tool = evt.get("tool_name", "")
     ti = evt.get("tool_input") or {}
@@ -57,6 +153,11 @@ def decide(evt):
     if tool == "Bash":
         cmd = ti.get("command", "")
         low = cmd.lower()
+        hit = bash_touches_protected(cmd, cwd, bool(agent))
+        if hit == "subagent":
+            return ("deny", "【角色 agent 安全边界】子 agent 不能运行写技能层的脚本（apply_proposal / build / rollback / install）。技能更新写成提案，由用户在主会话拍板后执行。")
+        if hit:
+            return ("deny", "【角色 agent 安全边界】不能用命令行改 agent 或技能包（命中 %s）。请把改动写成更新提案放进 %s/proposals/，用户拍板后由 apply_proposal.py 应用。" % (hit, ROOT))
         for pat, label in DANGER:
             if re.search(pat, low):
                 return ("ask", "【角色 agent 安全边界】检测到「%s」类操作：任何角色都只出方案，需用户确认后才执行。命令：%s" % (label, cmd[:200]))
@@ -65,9 +166,8 @@ def decide(evt):
     if not path:
         return None
     ap = os.path.abspath(os.path.join(cwd, path))
-    for p in protected_paths(cwd):
-        if ap == p or ap.startswith(p):
-            return ("deny", "【角色 agent 安全边界】不能在执行任务时直接改 agent 或技能包（%s）。请把改动写成更新提案放进 %s/proposals/，用户拍板后由 apply_proposal.py 应用。" % (path, ROOT))
+    if under(ap, protected_paths(cwd)):
+        return ("deny", "【角色 agent 安全边界】不能在执行任务时直接改 agent 或技能包（%s）。请把改动写成更新提案放进 %s/proposals/，用户拍板后由 apply_proposal.py 应用。" % (path, ROOT))
     if agent in DOC_ROLES and os.path.splitext(ap)[1].lower() in CODE_EXT:
         return ("deny", "【角色 agent 安全边界】角色「%s」只读代码 + 写文档，没有改代码文件的授权（%s）。请把改动要求交给对应的工程角色。" % (agent, path))
     return None

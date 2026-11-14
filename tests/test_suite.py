@@ -531,3 +531,238 @@ class Deliverables(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+NEW_ROLE = """# 新角色提案
+### R-10 新增专家：提示词运营
+```yaml
+action: new_role
+slug: prompt-ops
+name: 提示词运营专家
+kind: traditional
+model: sonnet
+evidence: [https://example.com/prompt-ops-jd]
+published: 2026-11-01
+reason: 提示词库运营在用户场景里常用，和现有专家职责重叠低于一半
+mount_skills: [structured-outputs, prompt-caching, llm-eval-pipeline, ai-feature-metrics, agent-skills]
+status: 待拍板
+```
+```json
+{
+  "retire_or_merge": {"slug": "ai-infra-mlops", "replacement": "ai-app-engineer", "reason": "自部署推理需求少，并入 AI 应用 / Agent 工程师"},
+  "role_defs": [{"id": "X-10", "family": "I", "name": "提示词运营", "positioning": "维护提示词库和提示词评审",
+                 "terms": [{"group": "AI 协同", "terms": ["提示词库", "提示词评审"]}], "tools": []}],
+  "profile": {
+    "tools_profile": "doc", "lead_stages": [9], "stages": [6, 9],
+    "summary": "维护业务提示词库，组织提示词评审和版本管理。",
+    "duties": ["维护提示词库", "组织提示词评审"], "outputs": [{"name": "提示词库变更说明", "template": "11-dashboard-retro"}],
+    "upstream": ["ai-app-engineer"], "downstream": ["ai-eval-compliance"],
+    "standards": ["每条提示词有版本和负责人"], "boundaries": [{"task": "写代码", "go_to": "ai-app-engineer"}],
+    "tasks": ["提示词库运营", "提示词评审", "提示词版本管理"], "terms": ["提示词库", "提示词评审", "提示词版本"]
+  },
+  "routing_cases": [
+    {"task": "整理客服机器人的提示词库，做一轮提示词评审", "expect": "prompt-ops"},
+    {"task": "给提示词库做提示词版本管理", "expect": "prompt-ops"}
+  ],
+  "skill_cases": [
+    {"id": "PO-1", "scenario": "提示词输出给程序用", "expect_adopt": ["structured-outputs"]},
+    {"id": "PO-2", "scenario": "提示词改动先跑评测", "expect_adopt": ["llm-eval-pipeline"]},
+    {"id": "PO-3", "scenario": "边界", "agent_contains": ["这不归我管"]}
+  ]
+}
+```
+"""
+
+
+class NewRole(unittest.TestCase):
+    def test_new_role_with_retire_applies_and_validates(self):
+        root = copy_repo(git=True)
+        p = os.path.join(root, "proposals", "2026-11-20-roles.md")
+        open(p, "w", encoding="utf-8").write(NEW_ROLE)
+        rc, out = run(root, "scripts/apply_proposal.py", p, "--check")
+        self.assertEqual(rc, 0, out)
+        rc, out = run(root, "scripts/apply_proposal.py", p, "--approve", "all")
+        self.assertEqual(rc, 0, out)
+        agents = os.path.join(root, "agents")
+        self.assertTrue(os.path.exists(os.path.join(agents, "prompt-ops.md")))
+        self.assertEqual(len(os.listdir(agents)), 17)              # 15 个专家（含已下线）+ 总控 + 情报员
+        self.assertIn("已下线", fm(os.path.join(agents, "ai-infra-mlops.md"))["description"])
+        rc, out = run(root, "scripts/validate.py")
+        self.assertEqual(rc, 0, out)
+        rc, out = run(root, "scripts/who.py", "提示词运营")
+        self.assertIn("提示词运营专家", out)
+        rc, out = run(root, "scripts/who.py", "模型运维工程师")
+        self.assertIn("AI 应用 / Agent 工程师", out)               # 下线专家的原始岗位转给替代角色
+        self.assertIn("prompt-ops", open(os.path.join(root, "workflow", "stages.md"), encoding="utf-8").read())
+        self.assertIn("prompt-ops", open(os.path.join(root, "agents", "orchestrator.md"), encoding="utf-8").read())
+        tags = subprocess.run(["git", "-C", root, "tag"], capture_output=True, text=True).stdout.split()
+        self.assertTrue(any(t.startswith("skills-") for t in tags))
+        # 新专家的调用会被 hook 记录
+        e = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Agent", "cwd": "/p", "tool_input": {"subagent_type": "prompt-ops"}})
+        run(root, "scripts/hooks/usage_hook.py", stdin=e)
+        self.assertIn("prompt-ops", open(os.path.join(root, "usage", "usage.jsonl"), encoding="utf-8").read())
+
+    def test_new_role_incomplete_rejected_by_check(self):
+        root = copy_repo()
+        p = os.path.join(root, "proposals", "bad.md")
+        bad = NEW_ROLE.replace('"retire_or_merge": {"slug": "ai-infra-mlops", "replacement": "ai-app-engineer", "reason": "x"},', "")
+        bad = re.sub(r'"retire_or_merge": \{[^}]*\},', "", bad).replace("mount_skills: [structured-outputs, prompt-caching, llm-eval-pipeline, ai-feature-metrics, agent-skills]", "mount_skills: [structured-outputs]")
+        open(p, "w", encoding="utf-8").write(bad)
+        rc, out = run(root, "scripts/apply_proposal.py", p, "--check")
+        self.assertNotEqual(rc, 0)
+        self.assertIn("至少挂 5 个技能", out)
+        self.assertIn("retire_or_merge", out)
+
+
+class Round1Fixes(unittest.TestCase):
+    def test_guard_bash_protected(self):
+        def g(evt):
+            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt))
+            return json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
+        R = REPO
+        self.assertEqual(g({"tool_name": "Bash", "cwd": R, "tool_input": {"command": "sed -i '' 's/a/b/' data/skills/frontend/vite.md"}}), "deny")
+        self.assertEqual(g({"tool_name": "Bash", "cwd": "/p", "tool_input": {"command": "echo x > %s/agents/qa-expert.md" % R}}), "deny")
+        self.assertEqual(g({"tool_name": "Bash", "cwd": "/p", "agent_type": "backend-engineer", "tool_input": {"command": "cp a.md .claude/agents/architect.md"}}), "deny")
+        self.assertEqual(g({"tool_name": "Bash", "cwd": "/p", "agent_type": "backend-engineer", "tool_input": {"command": "python3 -c \"open('.claude/skills/vite/SKILL.md','w')\""}}), "deny")
+        self.assertEqual(g({"tool_name": "Bash", "cwd": "/p", "agent_type": "architect", "tool_input": {"command": "python3 %s/scripts/apply_proposal.py x.md --approve all" % R}}), "deny")
+        self.assertIsNone(g({"tool_name": "Bash", "cwd": R, "tool_input": {"command": "grep -r Vite data/skills"}}))
+        self.assertIsNone(g({"tool_name": "Bash", "cwd": R, "tool_input": {"command": "cat data/skills/frontend/vite.md 2>/dev/null"}}))
+        self.assertIsNone(g({"tool_name": "Bash", "cwd": "/p", "tool_input": {"command": "python3 %s/scripts/apply_proposal.py x.md --approve 1" % R}}))
+
+    def test_rounded_baseline_not_regression(self):
+        root = copy_repo()
+        for rel, key in (("scripts/eval_routing/last_result.json", "hit_rate"), ("scripts/eval_skills/last_result.json", "pass_rate")):
+            p = os.path.join(root, rel)
+            d = json.load(open(p, encoding="utf-8"))
+            d["results"][0]["ok"] = False      # 基线里第 1 条失败
+            d[key] = round((len(d["results"]) - 1) / len(d["results"]), 4)
+            json.dump(d, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+        # 让第 1 条真的失败：把对应用例改成不可能命中
+        rp = os.path.join(root, "scripts", "eval_routing", "cases.json")
+        rc_ = json.load(open(rp, encoding="utf-8"))
+        first_r = json.load(open(os.path.join(root, "scripts/eval_routing/last_result.json"), encoding="utf-8"))["results"][0]["task"]
+        for c in rc_["cases"]:
+            if c["task"] == first_r:
+                c["expect"], c["also_ok"] = "model-algorithm-engineer", []
+        json.dump(rc_, open(rp, "w", encoding="utf-8"), ensure_ascii=False)
+        sp = os.path.join(root, "scripts", "eval_skills", "cases.json")
+        sc = json.load(open(sp, encoding="utf-8"))
+        sc["cases"][0]["expect_adopt"] = ["posthog"]
+        json.dump(sc, open(sp, "w", encoding="utf-8"), ensure_ascii=False)
+        proj = tempfile.mkdtemp()
+        sh = os.path.join(root, "install.sh")
+        r = subprocess.run(["bash", sh, "--update", "--project", proj, "--mcp", "none"], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertNotIn("拒绝", r.stdout)
+
+    def test_settings_bak_keeps_original(self):
+        root = copy_repo()
+        proj = tempfile.mkdtemp()
+        os.makedirs(os.path.join(proj, ".claude"))
+        orig = {"permissions": {"allow": ["Bash(ls:*)"]}}
+        json.dump(orig, open(os.path.join(proj, ".claude", "settings.json"), "w"))
+        sh = os.path.join(root, "install.sh")
+        for _ in range(2):
+            subprocess.run(["bash", sh, "--project", proj, "--mcp", "none"], capture_output=True, text=True, check=True)
+        self.assertEqual(json.load(open(os.path.join(proj, ".claude", "settings.json.bak"))), orig)
+        subprocess.run(["bash", sh, "--uninstall", "--project", proj], capture_output=True, text=True, check=True)
+        self.assertEqual(json.load(open(os.path.join(proj, ".claude", "settings.json.bak"))), orig)
+        self.assertEqual(json.load(open(os.path.join(proj, ".claude", "settings.json"))), orig)
+
+    def test_usage_report_no_data(self):
+        root = copy_repo()
+        os.makedirs(os.path.join(root, "state"), exist_ok=True)
+        json.dump({"projects": []}, open(os.path.join(root, "state", "projects.json"), "w"))
+        rep = json.loads(run(root, "scripts/usage_report.py", "--json")[1])
+        names = [r["name"] for r in rep["roles"]]
+        self.assertEqual(names, sorted(names))
+        self.assertIn("hook 没有任何角色调用记录", rep["notice"])
+
+    def test_refresh_uses_proposal_date_and_mark(self):
+        root = copy_repo()
+        env = {"WORKER_AGENT_TODAY": "2026-12-30"}
+        open(os.path.join(root, "proposals", "2026-12-20-frontend.md"), "w").write("<!-- source: tech-scout 2026-12-20 -->\n# x\n")
+        rc, out = run(root, "scripts/refresh_check.py", env=env)
+        self.assertEqual(out.strip(), "")       # 10 天前侦察过（情报员提案文件日期），不提醒
+        rc, out = run(root, "scripts/refresh_check.py", "--mark-refreshed", env=env)
+        self.assertIn("2026-12-30", out)
+
+
+class Round2Fixes(unittest.TestCase):
+    def test_new_role_replaces_retired_with_itself(self):
+        for rep in ('"replacement": "prompt-ops", ', ""):      # 显式写新专家自己 / 不写（默认新专家自己）
+            root = copy_repo()
+            prop = NEW_ROLE.replace('"replacement": "ai-app-engineer", ', rep)
+            p = os.path.join(root, "proposals", "r.md")
+            open(p, "w", encoding="utf-8").write(prop)
+            self.assertEqual(run(root, "scripts/apply_proposal.py", p, "--check")[0], 0)
+            rc, out = run(root, "scripts/apply_proposal.py", p, "--approve", "all", "--no-snapshot")
+            self.assertNotIn("不存在", out)
+            # 用 prompt-ops 顶替推理部署会让 vLLM 等用例选错角色：回归门禁按逐条用例拒绝，这是预期行为
+            self.assertIn("期望 prompt-ops", out)
+            # 绕过门禁直接调用 apply_new_role，检查落地结果
+            code = ("import sys,json;sys.path.insert(0,'scripts');import apply_proposal as a;"
+                    "t,items=a.parse('proposals/r.md');a.apply_new_role(items[0]['data'],'R-10',[]);"
+                    "print(json.dumps(json.load(open('data/roles_overlay.json'))['retire']))")
+            rc, out = run(root, "-c", code)
+            self.assertEqual(rc, 0, out)
+            self.assertEqual(json.loads(out.strip().splitlines()[-1])["ai-infra-mlops"]["replacement"], "prompt-ops")
+            rc, out = run(root, "scripts/build.py", "--mcp", "none", "--quiet")
+            d = fm(os.path.join(root, "agents", "ai-infra-mlops.md"))["description"]
+            self.assertIn("改找 提示词运营专家", d)
+            self.assertIn("原来合并的原始岗位已转给", d)
+            self.assertNotIn("合并了原始岗位：——", d)
+
+    def test_retire_keeps_also(self):
+        root = copy_repo()
+        p = os.path.join(root, "proposals", "ret.md")
+        open(p, "w", encoding="utf-8").write("""### R-20 下线前端工程师
+```yaml
+action: retire_role
+slug: frontend-engineer
+replacement: backend-engineer
+evidence: [https://example.com/x]
+published: 2026-11-01
+reason: 测试 also 保留
+status: 待拍板
+```
+""")
+        rc, out = run(root, "scripts/apply_proposal.py", p, "--approve", "all", "--no-snapshot")
+        # 下线前端会让前端用例改由后端承担；不管回归结果如何，映射逻辑单独校验
+        sys.path.insert(0, os.path.join(root, "scripts"))
+        code = ("import sys,json;sys.path.insert(0,'scripts');import apply_proposal as a;"
+                "a.retire('frontend-engineer','backend-engineer','t','R-20',[]);"
+                "import json;print(json.dumps(json.load(open('data/roles_overlay.json'))['merge']))")
+        rc, out = run(root, "-c", code)
+        merge = json.loads(out.strip().splitlines()[-1])
+        self.assertEqual(merge["E-01"]["target"], "backend-engineer")
+        self.assertEqual(merge["E-05"]["target"], "backend-engineer")
+        self.assertNotIn("frontend-engineer", merge["E-05"].get("also", []))
+        self.assertNotIn("also", merge["E-05"])       # also 指向被下线角色→替代角色，与 target 相同则去掉
+
+    def test_guard_cd_and_writer_scope(self):
+        def g(cmd, cwd="/p", agent="backend-engineer"):
+            evt = {"tool_name": "Bash", "cwd": cwd, "agent_type": agent, "tool_input": {"command": cmd}}
+            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt))
+            return json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
+        R = REPO
+        self.assertEqual(g("cd %s && echo x >> data/skills/frontend/vite.md" % R), "deny")
+        self.assertEqual(g("cd %s/data/skills/frontend && printf x > vite.md" % R), "deny")
+        self.assertEqual(g("cd %s && python3 scripts/build.py" % R), "deny")
+        self.assertIsNone(g("python3 build.py --release"))
+        self.assertIsNone(g("./install.sh"))
+        self.assertIsNone(g("python tools/extract.py data.json"))
+        self.assertIsNone(g("cd %s && python3 scripts/validate.py" % R))
+        for path in ("skills/vite/SKILL.md", "local/skills/x/y.md"):
+            evt = {"tool_name": "Write", "cwd": "/p", "tool_input": {"file_path": os.path.join(R, path)}}
+            out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt))[1]
+            self.assertEqual(json.loads(out)["hookSpecificOutput"]["permissionDecision"], "deny")
+
+    def test_refresh_ignores_unmarked_and_future(self):
+        root = copy_repo()
+        env = {"WORKER_AGENT_TODAY": "2027-01-30"}
+        run(root, "scripts/rollback.py", "--snapshot", "init", env={"WORKER_AGENT_TODAY": "2026-11-20"})
+        open(os.path.join(root, "proposals", "2027-01-25-roles.md"), "w").write("# 手写提案\n")
+        open(os.path.join(root, "proposals", "2099-01-01-frontend.md"), "w").write("<!-- source: tech-scout 2099-01-01 -->\n")
+        rc, out = run(root, "scripts/refresh_check.py", env=env)
+        self.assertIn("距上次 /skills-refresh 已", out)

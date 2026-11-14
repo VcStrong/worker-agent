@@ -75,17 +75,14 @@ def regression_gate():
     import run_skill_eval
     hit, rres = run_eval.evaluate(verbose=False)
     rate, sres = run_skill_eval.evaluate(verbose=False)
+    import regress
     prev_r = common.read_json(os.path.join(HERE, "eval_routing", "last_result.json"), {}) or {}
     prev_s = common.read_json(os.path.join(HERE, "eval_skills", "last_result.json"), {}) or {}
     bad = []
-    if prev_r and hit < prev_r.get("hit_rate", 0):
-        ok = {r["task"] for r in prev_r["results"] if r["ok"]}
-        bad.append("选角命中率 %.1f%% → %.1f%%" % (prev_r["hit_rate"] * 100, hit * 100))
-        bad += ["  退化：%s（期望 %s，得到 %s）" % (r["task"], r["expect"], r["got"]) for r in rres if not r["ok"] and r["task"] in ok]
-    if prev_s and rate < prev_s.get("pass_rate", 0):
-        ok = {r["id"] for r in prev_s["results"] if r["ok"]}
-        bad.append("技能题通过率 %.1f%% → %.1f%%" % (prev_s["pass_rate"] * 100, rate * 100))
-        bad += ["  退化：%s %s（%s）" % (r["id"], r["scenario"], r["why"]) for r in sres if not r["ok"] and r["id"] in ok]
+    if prev_r:
+        bad += regress.compare(prev_r.get("results"), rres, prev_r.get("hit_rate"), hit, "routing")
+    if prev_s:
+        bad += regress.compare(prev_s.get("results"), sres, prev_s.get("pass_rate"), rate, "skills")
     return bad, hit, rate
 
 
@@ -165,6 +162,7 @@ def install(a, base, project):
         subprocess.run(args, check=True)
     else:
         print("ℹ️  --no-hooks：不改 settings.json；使用度改为从 workspace/*/log.md 统计，更新提醒改为总控开工时检查")
+        print("⚠️  没有 guard hook：危险命令不会自动弹确认；产品 / 设计等文档角色有 Write 工具，无法再在工具层拦截它们写代码文件，只能靠提示词约束")
     if project:
         register_project(project)
     n_agents = len([r for r in files if r.startswith("agents/")])

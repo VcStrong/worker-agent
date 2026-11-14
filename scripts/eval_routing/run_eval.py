@@ -63,12 +63,12 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--llm", action="store_true")
     ap.add_argument("--min", type=float, default=0.85)
-    ap.add_argument("--save", action="store_true")
+    ap.add_argument("--save", action="store_true", help="离线结果写 last_result.json（install --update / apply_proposal 的回归基线）；--llm 时写 last_result_llm.json")
     ap.add_argument("--quiet", action="store_true")
     a = ap.parse_args()
     hit, results = evaluate(a.llm, not a.quiet)
     if a.save:
-        common.write_json(os.path.join(HERE, "last_result.json"), {"hit_rate": round(hit, 4), "results": results})
+        common.write_json(os.path.join(HERE, "last_result_llm.json" if a.llm else "last_result.json"), {"hit_rate": hit, "mode": "llm(claude -p --model haiku)" if a.llm else "offline", "ts": common.now_iso(), "results": results})
     return 0 if hit >= a.min else 1
 
 

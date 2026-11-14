@@ -60,12 +60,20 @@ def strip_ours(settings):
 
 
 def save(path, data, backup=True):
+    """settings.json.bak 只在第一次写（保留装本套件之前的原始文件），以后每次另存 settings.json.bak-<时间>。"""
     os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    saved = None
     if backup and os.path.exists(path):
-        shutil.copy2(path, path + ".bak")
+        if not os.path.exists(path + ".bak"):
+            saved = path + ".bak"
+        else:
+            import datetime
+            saved = path + ".bak-" + datetime.datetime.now().strftime("%Y%m%d%H%M%S%f")
+        shutil.copy2(path, saved)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
         f.write("\n")
+    return saved
 
 
 def main(argv):
@@ -85,15 +93,16 @@ def main(argv):
         for event, groups in hooks_for(home, "--no-reminder" not in argv).items():
             hooks.setdefault(event, []).extend(groups)
             added += len(groups)
-        save(path, settings)
+        saved = save(path, settings)
         print("✅ hooks 已合并进 %s（追加 %d 组%s）%s" % (path, added, "，替换旧版 %d 条" % removed if removed else "",
-                                                     "；原文件已备份为 settings.json.bak" if existed else ""))
+                                                     "；改前已备份为 %s" % os.path.basename(saved) if saved else ""))
     else:
         if not existed:
             print("ℹ️  %s 不存在，跳过" % path)
             return 0
-        save(path, settings)
-        print("✅ 已从 %s 移除本套件的 %d 条 hook（备份 settings.json.bak）" % (path, removed))
+        saved = save(path, settings)
+        print("✅ 已从 %s 移除本套件的 %d 条 hook（改前备份 %s；装本套件之前的原始文件是 settings.json.bak）" % (
+            path, removed, os.path.basename(saved) if saved else "无"))
     return 0
 
 
