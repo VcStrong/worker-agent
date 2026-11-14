@@ -1,0 +1,596 @@
+{
+  "tag": "skills-20261115-01",
+  "created": "2026-11-15",
+  "reason": "首版技能层 v1.0.0",
+  "suite_version": "1.0.0",
+  "skills": {
+    "a2a-protocol": {
+      "version": "1.0.0",
+      "maturity": "试用",
+      "as_of": "2026-11-14",
+      "sha": "b260a7ab"
+    },
+    "agent-product-patterns": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "07ea3455"
+    },
+    "agent-sdk": {
+      "version": "1.0.0",
+      "maturity": "试用",
+      "as_of": "2026-11-14",
+      "sha": "3c88279e"
+    },
+    "agent-skills": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "3c8babde"
+    },
+    "ai-content-labeling": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "157fd8a2"
+    },
+    "ai-feature-metrics": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "ed932852"
+    },
+    "ai-image-generation": {
+      "version": "1.0.0",
+      "maturity": "试用",
+      "as_of": "2026-11-14",
+      "sha": "9d1d7eb1"
+    },
+    "ai-prototyping": {
+      "version": "1.0.0",
+      "maturity": "评估",
+      "as_of": "2026-11-14",
+      "sha": "6bd94375"
+    },
+    "ai-ux-patterns": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "1b3751de"
+    },
+    "android-xml-layout": {
+      "version": "1.0.0",
+      "maturity": "暂缓",
+      "as_of": "2026-11-14",
+      "sha": "bccd0100"
+    },
+    "autogen": {
+      "version": "1.0.0",
+      "maturity": "暂缓",
+      "as_of": "2026-11-14",
+      "sha": "a50a7142"
+    },
+    "baseline-profiles": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "b8f3f180"
+    },
+    "cloud-aws": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "7386f9d6"
+    },
+    "cloud-cn-providers": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "35c419ef"
+    },
+    "cloud-device-testing-cn": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "bccd54a4"
+    },
+    "cloud-device-testing-global": {
+      "version": "1.0.0",
+      "maturity": "评估",
+      "as_of": "2026-11-14",
+      "sha": "599f5e0f"
+    },
+    "datatester-ab-testing": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "cc0ae123"
+    },
+    "dbt": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "97698d8f"
+    },
+    "design-tokens-dtcg": {
+      "version": "1.0.0",
+      "maturity": "试用",
+      "as_of": "2026-11-14",
+      "sha": "132b5a4a"
+    },
+    "dify-coze": {
+      "version": "1.0.0",
+      "maturity": "试用",
+      "as_of": "2026-11-14",
+      "sha": "3842465a"
+    },
+    "dovetail": {
+      "version": "1.0.0",
+      "maturity": "评估",
+      "as_of": "2026-11-14",
+      "sha": "77466e4b"
+    },
+    "ebpf-observability": {
+      "version": "1.0.0",
+      "maturity": "试用",
+      "as_of": "2026-11-14",
+      "sha": "79483d95"
+    },
+    "eu-ai-act": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "e5516814"
+    },
+    "faiss-hnsw": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "3328b6a7"
+    },
+    "fcm": {
+      "version": "1.0.0",
+      "maturity": "评估",
+      "as_of": "2026-11-14",
+      "sha": "a50dc411"
+    },
+    "feishu-docs-base": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "c69d9249"
+    },
+    "figma-variables-dev-mode": {
+      "version": "1.0.0",
+      "maturity": "试用",
+      "as_of": "2026-11-14",
+      "sha": "7ea70a8d"
+    },
+    "finops-focus": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "ed235972"
+    },
+    "flink-cdc": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "31a0f6fb"
+    },
+    "flutter": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "405d4f9a"
+    },
+    "ga4": {
+      "version": "1.0.0",
+      "maturity": "评估",
+      "as_of": "2026-11-14",
+      "sha": "66802009"
+    },
+    "genai-service-filing": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "03634977"
+    },
+    "generative-recommendation": {
+      "version": "1.0.0",
+      "maturity": "评估",
+      "as_of": "2026-11-14",
+      "sha": "20124ee5"
+    },
+    "gitops-argocd": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "d6d3a8ef"
+    },
+    "go-modern": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "09dba18d"
+    },
+    "grpc-connect": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "bd55ffd0"
+    },
+    "harmonyos-next": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "a39d25fd"
+    },
+    "hybrid-retrieval-rerank": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "08fcd622"
+    },
+    "ingress-nginx-controller": {
+      "version": "1.0.0",
+      "maturity": "暂缓",
+      "as_of": "2026-11-14",
+      "sha": "bb544f42"
+    },
+    "jetpack-compose": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "eb49e8ce"
+    },
+    "k6-load-testing": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "fbf17e52"
+    },
+    "kotlin-2-k2": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "1ed3de7a"
+    },
+    "kotlin-coroutines-flow": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "198f9685"
+    },
+    "kotlin-multiplatform": {
+      "version": "1.0.0",
+      "maturity": "试用",
+      "as_of": "2026-11-14",
+      "sha": "babf19b0"
+    },
+    "kubernetes-gateway-api": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "96a11b41"
+    },
+    "lakehouse-iceberg-paimon": {
+      "version": "1.0.0",
+      "maturity": "试用",
+      "as_of": "2026-11-14",
+      "sha": "ad469406"
+    },
+    "langgraph": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "3ded4927"
+    },
+    "llm-cost-estimation": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "8fc721a1"
+    },
+    "llm-cost-monitoring": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "b2c02eb3"
+    },
+    "llm-customer-service": {
+      "version": "1.0.0",
+      "maturity": "试用",
+      "as_of": "2026-11-14",
+      "sha": "c59c733f"
+    },
+    "llm-eval-pipeline": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "3e3c8ccc"
+    },
+    "llm-gateway-routing": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "411c0ece"
+    },
+    "llm-providers-cn": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "805466ed"
+    },
+    "llm-providers-global": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "400ed28f"
+    },
+    "lottie-motion": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "2f147629"
+    },
+    "mastergo-jsdesign": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "b37117d0"
+    },
+    "mcp": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "a2a5ac80"
+    },
+    "metrics-semantic-layer": {
+      "version": "1.0.0",
+      "maturity": "试用",
+      "as_of": "2026-11-14",
+      "sha": "4b9dab3d"
+    },
+    "miniprogram": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "df1dc79a"
+    },
+    "mlflow": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "2a355ba7"
+    },
+    "model-quantization": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "c2435a60"
+    },
+    "multimodal-models": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "475d90c0"
+    },
+    "opentelemetry": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "a0c66740"
+    },
+    "owasp-llm-top10": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "1adafbfe"
+    },
+    "pact-contract-testing": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "84acf2ee"
+    },
+    "peft-lora": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "3f3edec3"
+    },
+    "pipl-compliance-audit": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "e7c83a0f"
+    },
+    "platform-engineering-backstage": {
+      "version": "1.0.0",
+      "maturity": "试用",
+      "as_of": "2026-11-14",
+      "sha": "032b23ed"
+    },
+    "playwright": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "deda2112"
+    },
+    "playwright-test-agents": {
+      "version": "1.0.0",
+      "maturity": "试用",
+      "as_of": "2026-11-14",
+      "sha": "e4813c4e"
+    },
+    "postgresql": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "719cd508"
+    },
+    "posthog": {
+      "version": "1.0.0",
+      "maturity": "评估",
+      "as_of": "2026-11-14",
+      "sha": "9346b02b"
+    },
+    "prompt-caching": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "e8127f7d"
+    },
+    "push-cn-vendor-channels": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "0cf233b1"
+    },
+    "react-nextjs-app-router": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "2f80906f"
+    },
+    "rspack": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "7b6c9736"
+    },
+    "rxjava": {
+      "version": "1.0.0",
+      "maturity": "暂缓",
+      "as_of": "2026-11-14",
+      "sha": "45b62973"
+    },
+    "secret-scanning": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "b23a732a"
+    },
+    "selenium": {
+      "version": "1.0.0",
+      "maturity": "暂缓",
+      "as_of": "2026-11-14",
+      "sha": "4a95e427"
+    },
+    "sensors-growingio": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "1616c721"
+    },
+    "serverless-aws-lambda": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "390347c8"
+    },
+    "serverless-cn-fc": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "37800b8d"
+    },
+    "sketch": {
+      "version": "1.0.0",
+      "maturity": "暂缓",
+      "as_of": "2026-11-14",
+      "sha": "4a6b89dd"
+    },
+    "speech-asr-tts": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "c5e18fb7"
+    },
+    "spring-boot-virtual-threads": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "5005d0d8"
+    },
+    "starrocks-doris": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "80b5f5ed"
+    },
+    "structured-outputs": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "91a5826c"
+    },
+    "supply-chain-security": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "fe5be57b"
+    },
+    "swift-6-concurrency": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "6d267782"
+    },
+    "swift-testing": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "f2fe5099"
+    },
+    "swiftui": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "c81ea90d"
+    },
+    "tailwind-css-v4": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "259a6c84"
+    },
+    "typescript-strict": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "962e77fc"
+    },
+    "vite": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "90db4f0b"
+    },
+    "vllm-sglang": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "ca945a97"
+    },
+    "vue-nuxt": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "d37b3958"
+    },
+    "web-vitals-inp": {
+      "version": "1.0.0",
+      "maturity": "采用",
+      "as_of": "2026-11-14",
+      "sha": "82d9056e"
+    },
+    "webpack": {
+      "version": "1.0.0",
+      "maturity": "暂缓",
+      "as_of": "2026-11-14",
+      "sha": "4f4ecb0c"
+    }
+  }
+}
