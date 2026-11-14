@@ -1,0 +1,9 @@
+.dev/
+__pycache__/
+*.pyc
+build/
+state/
+usage/usage.jsonl
+usage/archive/
+snapshots/
+.DS_Store
