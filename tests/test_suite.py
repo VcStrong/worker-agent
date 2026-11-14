@@ -1,0 +1,533 @@
+#!/usr/bin/env python3
+"""套件自测：每个用例把仓库拷到临时目录里跑脚本，不改动真实仓库。
+
+运行：python3 -m unittest discover -s tests -v
+"""
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PY = sys.executable
+GRAPH = os.path.join(REPO, "source", "graph.html")
+
+
+def copy_repo(git=False):
+    d = tempfile.mkdtemp(prefix="ra-test-")
+    dst = os.path.join(d, "wa")
+    shutil.copytree(REPO, dst, ignore=shutil.ignore_patterns(".git", "state", "snapshots", "build", "__pycache__", ".dev"))
+    if os.path.exists(os.path.join(dst, "usage", "usage.jsonl")):
+        os.remove(os.path.join(dst, "usage", "usage.jsonl"))
+    if git:
+        for args in (["init", "-q"], ["add", "-A"], ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "init"]):
+            subprocess.run(["git", "-C", dst] + args, check=True, capture_output=True)
+    return dst
+
+
+def run(root, *args, env=None, stdin=None):
+    e = dict(os.environ)
+    e.pop("WORKER_AGENT_HOME", None)
+    e.update(env or {})
+    r = subprocess.run([PY] + [os.path.join(root, a) if a.endswith(".py") and not os.path.isabs(a) else a for a in args],
+                       capture_output=True, text=True, cwd=root, env=e, input=stdin)
+    return r.returncode, r.stdout + r.stderr
+
+
+def fm(path):
+    t = open(path, encoding="utf-8").read()
+    m = re.match(r"^---\n(.*?)\n---\n", t, re.S)
+    return dict(l.split(": ", 1) for l in m.group(1).splitlines() if ": " in l)
+
+
+class Extract(unittest.TestCase):
+    def test_extract_48_roles_fields_and_deterministic(self):
+        root = copy_repo()
+        rc, out = run(root, "scripts/extract.py", GRAPH)
+        self.assertEqual(rc, 0, out)
+        data = json.load(open(os.path.join(root, "data", "roles.json"), encoding="utf-8"))
+        self.assertEqual(len(data["roles"]), 48)
+        need = ["id", "family_name", "name", "positioning", "duties", "outputs", "abilities", "upstream", "downstream",
+                "stages", "lead_stages", "tools", "metrics", "career", "work", "terms", "unwritten_rules"]
+        for r in data["roles"]:
+            for k in need:
+                self.assertIn(k, r)
+            self.assertTrue(any(g["group"] == "AI 协同" for g in r["terms"]))
+            for t in r["tools"]:
+                self.assertEqual(t["source"], "图谱")
+        before = open(os.path.join(root, "data", "roles.json"), "rb").read()
+        run(root, "scripts/extract.py", GRAPH)
+        self.assertEqual(before, open(os.path.join(root, "data", "roles.json"), "rb").read())
+
+    def test_missing_field_and_unmapped_role_warn_and_skills_untouched(self):
+        root = copy_repo()
+        html = open(GRAPH, encoding="utf-8").read()
+        html = html.replace('m:"需求交付率、版本目标达成度、需求变更率、核心业务指标",', "", 1)
+        html = html.replace("const ROLES = [", 'const ROLES = [\n{id:"X-01",f:"I",n:"提示词运营",t:"新岗位",d:["a"],o:["b"],k:["c"],u:"x",dn:"y",s:[9],l:[9],tl:["Z"],m:"m",p:"p"},', 1)
+        p = os.path.join(root, "g.html")
+        open(p, "w", encoding="utf-8").write(html)
+        skills_before = {f: open(f, "rb").read() for f in _skill_files(root)}
+        rc, out = run(root, "scripts/extract.py", p)
+        self.assertEqual(rc, 0, out)
+        self.assertIn("P-01 缺少字段 metrics", out)
+        self.assertIn("X-01 提示词运营", out)
+        self.assertIn("没有映射", out)
+        self.assertEqual(skills_before, {f: open(f, "rb").read() for f in _skill_files(root)})
+        rc, out = run(root, "scripts/build.py", "--mcp", "none", "--quiet")
+        self.assertEqual(rc, 0, out)
+        self.assertEqual(len(os.listdir(os.path.join(root, "agents"))), 16)
+
+
+def _skill_files(root):
+    out = []
+    for d, _, fs in os.walk(os.path.join(root, "data", "skills")):
+        out += [os.path.join(d, f) for f in fs]
+    return sorted(out)
+
+
+class BuildValidate(unittest.TestCase):
+    def test_build_16_agents_models_tools(self):
+        root = copy_repo()
+        rc, out = run(root, "scripts/build.py", "--mcp", "kb")
+        self.assertEqual(rc, 0, out)
+        agents = os.path.join(root, "agents")
+        self.assertEqual(len([f for f in os.listdir(agents) if f.endswith(".md")]), 16)
+        opus = {"orchestrator", "architect", "product-manager", "ai-product-manager", "tech-scout"}
+        for f in os.listdir(agents):
+            h = fm(os.path.join(agents, f))
+            self.assertEqual(h["model"], "opus" if h["name"] in opus else "sonnet", f)
+            self.assertNotIn("kb_base_secret", h["tools"])
+            if h["name"] != "orchestrator":
+                self.assertNotIn("kb_log", h["tools"])
+                self.assertNotIn("kb_ask", h["tools"])
+            if h["name"] == "product-manager":
+                self.assertNotIn("Edit", h["tools"])
+                self.assertNotIn("Bash", h["tools"])
+                self.assertIn("mcp__kb__kb_search", h["tools"])
+        rc, out = run(root, "scripts/validate.py")
+        self.assertEqual(rc, 0, out)
+
+    def test_no_kb_no_kb_tools(self):
+        root = copy_repo()
+        rc, out = run(root, "scripts/build.py", "--mcp", "none")
+        for f in os.listdir(os.path.join(root, "agents")):
+            self.assertNotIn("mcp__", fm(os.path.join(root, "agents", f))["tools"])
+
+    def test_context7_only_engineering(self):
+        root = copy_repo()
+        run(root, "scripts/build.py", "--mcp", "context7")
+        self.assertIn("mcp__context7__", fm(os.path.join(root, "agents", "backend-engineer.md"))["tools"])
+        self.assertNotIn("mcp__context7__", fm(os.path.join(root, "agents", "product-manager.md"))["tools"])
+        self.assertIn("先用文档类 MCP", open(os.path.join(root, "agents", "frontend-engineer.md"), encoding="utf-8").read())
+
+    def test_model_overrides(self):
+        root = copy_repo()
+        p = os.path.join(root, "config", "run.yaml")
+        t = open(p, encoding="utf-8").read().replace("  standard: {}", "  standard: {data-growth: haiku, architect: sonnet}")
+        open(p, "w", encoding="utf-8").write(t)
+        run(root, "scripts/build.py", "--mcp", "none")
+        self.assertEqual(fm(os.path.join(root, "agents", "data-growth.md"))["model"], "haiku")
+        self.assertEqual(fm(os.path.join(root, "agents", "architect.md"))["model"], "sonnet")
+        rc, out = run(root, "scripts/validate.py")
+        self.assertEqual(rc, 0, out)
+
+    def test_validate_errors(self):
+        root = copy_repo()
+        run(root, "scripts/build.py", "--mcp", "none")
+        # 长 description、禁用工具、非总控写工具
+        p = os.path.join(root, "agents", "qa-expert.md")
+        t = open(p, encoding="utf-8").read()
+        t = re.sub(r"^description: .*$", "description: " + "长" * 1100, t, count=1, flags=re.M)
+        t = re.sub(r"^tools: (.*)$", r"tools: \1, mcp__kb__kb_base_secret, mcp__kb__kb_log", t, count=1, flags=re.M)
+        open(p, "w", encoding="utf-8").write(t)
+        # team.yaml 不存在的角色 + 超编
+        tp = os.path.join(root, "config", "team.yaml")
+        tt = open(tp, encoding="utf-8").read().replace("role_cap: 15", "role_cap: 10").replace("  - ai-eval-compliance\n", "  - ai-eval-compliance\n  - no-such-role\n", 1)
+        open(tp, "w", encoding="utf-8").write(tt)
+        # 技能包缺来源和 as_of；暂缓缺替代
+        sp = os.path.join(root, "data", "skills", "frontend", "vite.md")
+        st = open(sp, encoding="utf-8").read()
+        st = re.sub(r"^as_of:.*\n", "", st, count=1, flags=re.M)
+        st = re.sub(r"^sources:\n(  - .*\n)+", "sources: []\n", st, count=1, flags=re.M)
+        open(sp, "w", encoding="utf-8").write(st)
+        wp = os.path.join(root, "data", "skills", "frontend", "webpack.md")
+        wt = re.sub(r"## 替代\n.*?(?=\n## )", "", open(wp, encoding="utf-8").read(), count=1, flags=re.S)
+        wt = re.sub(r"^replaced_by:.*\n(  - .*\n)*", "", wt, count=1, flags=re.M)
+        open(wp, "w", encoding="utf-8").write(wt)
+        rc, out = run(root, "scripts/validate.py")
+        self.assertNotEqual(rc, 0)
+        for s in ("description 超过 1024", "禁用工具：mcp__kb__kb_base_secret", "只有总控能用知识库写工具",
+                  "不存在的角色 id：no-such-role", "超过 role_cap=10", "缺少来源链接", "缺少必填元数据 as_of", "暂缓项必须"):
+            self.assertIn(s, out)
+
+    def test_stale_warning_exit_zero(self):
+        root = copy_repo()
+        rc, out = run(root, "scripts/validate.py", env={"WORKER_AGENT_TODAY": "2027-03-01"})
+        self.assertEqual(rc, 0, out)
+        self.assertIn("过期技能包", out)
+        self.assertIn("mcp", out)          # AI 技能 90 天就过期
+        self.assertNotIn("  - vite ", out)  # 普通技能 180 天未过期
+
+    def test_local_override_wins(self):
+        root = copy_repo()
+        src = os.path.join(root, "data", "skills", "frontend", "vite.md")
+        dst = os.path.join(root, "local", "skills", "frontend", "vite.md")
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        open(dst, "w", encoding="utf-8").write(open(src, encoding="utf-8").read().replace("maturity: 采用", "maturity: 试用"))
+        run(root, "scripts/build.py", "--mcp", "none")
+        t = open(os.path.join(root, "agents", "frontend-engineer.md"), encoding="utf-8").read()
+        trial = t.split("### 试用")[1].split("###")[0]
+        self.assertIn("`vite`", trial)
+        self.assertIn("local/ 覆盖", trial)
+
+    def test_merge_map_change_syncs_agents(self):
+        root = copy_repo()
+        mp = os.path.join(root, "data", "merge_map.json")
+        mm = json.load(open(mp, encoding="utf-8"))
+        del mm["experts"]["ai-infra-mlops"]
+        mm["map"]["I-05"] = {"target": "ai-app-engineer"}
+        mm["map"]["I-08"] = {"target": "ai-app-engineer"}
+        json.dump(mm, open(mp, "w", encoding="utf-8"), ensure_ascii=False)
+        rc, out = run(root, "scripts/build.py", "--mcp", "none")
+        self.assertIn("删除 agents/ai-infra-mlops.md", out)
+        self.assertFalse(os.path.exists(os.path.join(root, "agents", "ai-infra-mlops.md")))
+        self.assertEqual(len(os.listdir(os.path.join(root, "agents"))), 15)
+
+    def test_region_global_switches_default(self):
+        root = copy_repo()
+        rp = os.path.join(root, "config", "radar.yaml")
+        t = open(rp, encoding="utf-8").read()
+        open(rp, "w", encoding="utf-8").write(t.replace("region: cn", "region: global"))
+        run(root, "scripts/build.py", "--mcp", "none")
+        t = open(os.path.join(root, "agents", "client-engineer.md"), encoding="utf-8").read()
+        adopt = t.split("### 采用")[1].split("###")[0]
+        self.assertIn("`fcm`", adopt)
+        self.assertNotIn("`push-cn-vendor-channels`", adopt)
+
+    def test_radar_override_paused(self):
+        root = copy_repo()
+        rp = os.path.join(root, "config", "radar.yaml")
+        t = open(rp, encoding="utf-8").read()
+        open(rp, "w", encoding="utf-8").write(t.replace("overrides: {}", "overrides:\n  tailwind-css-v4: {maturity: 暂缓}"))
+        rc, out = run(root, "scripts/build.py", "--mcp", "none")
+        t = open(os.path.join(root, "agents", "frontend-engineer.md"), encoding="utf-8").read()
+        self.assertIn("`tailwind-css-v4`", t.split("### 暂缓")[1])
+
+
+class Who(unittest.TestCase):
+    def q(self, *a):
+        return run(REPO, "scripts/who.py", *a)
+
+    def test_queries(self):
+        rc, out = self.q("灰度")
+        self.assertIn("SRE 与安全工程师", out)
+        self.assertIn("客户端工程师", out)
+        rc, out = self.q("DBA")
+        self.assertIn("后端工程师", out)
+        rc, out = self.q("HRBP")
+        self.assertIn("不做 agent", out)
+        rc, out = self.q("后端工程师")
+        self.assertIn("合并了原始岗位", out)
+        rc, out = self.q("ArkTS")
+        self.assertIn("成熟度 采用", out)
+        self.assertIn("as_of", out)
+        rc, out = self.q("Webpack")
+        self.assertIn("暂缓", out)
+        self.assertIn("替代", out)
+        rc, out = self.q("不存在的词qq")
+        self.assertEqual(rc, 1)
+        self.assertIn("未找到", out)
+        self.assertEqual(len(out.split("最接近的词：")[1].strip().split("、")), 3)
+
+
+class Evals(unittest.TestCase):
+    def test_routing_and_skills(self):
+        rc, out = run(REPO, "scripts/eval_routing/run_eval.py")
+        self.assertEqual(rc, 0, out)
+        rc, out = run(REPO, "scripts/eval_skills/run_skill_eval.py")
+        self.assertEqual(rc, 0, out)
+
+
+class Hooks(unittest.TestCase):
+    def test_usage_hook_and_report(self):
+        root = copy_repo()
+        evts = [
+            {"hook_event_name": "PreToolUse", "tool_name": "Task", "cwd": "/p", "tool_input": {"subagent_type": "backend-engineer", "prompt": "写 workspace/checkin-points/06-x.md"}},
+            {"hook_event_name": "PreToolUse", "tool_name": "Agent", "cwd": "/p", "tool_input": {"subagent_type": "backend-engineer"}},
+            {"hook_event_name": "PreToolUse", "tool_name": "Agent", "cwd": "/p", "tool_input": {"subagent_type": "general-purpose"}},
+            {"hook_event_name": "PreToolUse", "tool_name": "Read", "cwd": "/p", "tool_input": {"file_path": "/p/.claude/skills/vite/SKILL.md"}},
+            {"hook_event_name": "PreToolUse", "tool_name": "Skill", "cwd": "/p", "tool_input": {"skill": "who"}},
+        ]
+        for e in evts:
+            rc, out = run(root, "scripts/hooks/usage_hook.py", stdin=json.dumps(e))
+            self.assertEqual((rc, out), (0, ""))
+        lines = open(os.path.join(root, "usage", "usage.jsonl"), encoding="utf-8").read().splitlines()
+        self.assertEqual(len(lines), 4)
+        self.assertEqual(json.loads(lines[0])["need"], "checkin-points")
+        rc, out = run(root, "scripts/usage_report.py", "--json")
+        rep = json.loads(out)
+        self.assertEqual(rep["roles"][0]["slug"], "backend-engineer")
+        self.assertEqual(rep["roles"][0]["count"], 2)
+        self.assertEqual(len(rep["roles"]), 14)
+        self.assertEqual(rep["skills"][0]["id"], "vite")
+
+    def test_usage_rotation(self):
+        root = copy_repo()
+        e = json.dumps({"hook_event_name": "PreToolUse", "tool_name": "Agent", "cwd": "/p", "tool_input": {"subagent_type": "qa-expert"}})
+        env = {"WORKER_AGENT_USAGE_MAX_BYTES": "300"}
+        for _ in range(6):
+            run(root, "scripts/hooks/usage_hook.py", stdin=e, env=env)
+        self.assertTrue(os.listdir(os.path.join(root, "usage", "archive")))
+        rep = json.loads(run(root, "scripts/usage_report.py", "--json")[1])
+        self.assertEqual(rep["roles"][0]["count"], 6)
+
+    def test_fallback_to_log(self):
+        root = copy_repo()
+        proj = tempfile.mkdtemp()
+        os.makedirs(os.path.join(proj, "workspace", "x"))
+        open(os.path.join(proj, "workspace", "x", "log.md"), "w").write(
+            '<!--usage {"ts":"2026-11-14T10:00:00+08:00","event":"call","role":"qa-expert#1","stage":"07","need":"x"} -->\n')
+        rc, out = run(root, "scripts/usage_report.py", "--workspace", proj)
+        self.assertIn("hook 未生效", out)
+        self.assertIn("测试专家（qa-expert）", out.splitlines()[3])
+
+    def test_guard_hook(self):
+        def g(evt):
+            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt))
+            return json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
+        for cmd in ("git push origin main", "rm -rf build", "kubectl apply -f x.yaml", "npm publish", "mysql -e 'DROP TABLE t'"):
+            self.assertEqual(g({"tool_name": "Bash", "tool_input": {"command": cmd}}), "ask", cmd)
+        self.assertIsNone(g({"tool_name": "Bash", "tool_input": {"command": "npm test"}}))
+        self.assertEqual(g({"tool_name": "Write", "tool_input": {"file_path": os.path.join(REPO, "data/skills/frontend/vite.md")}}), "deny")
+        self.assertEqual(g({"tool_name": "Edit", "agent_type": "product-manager", "tool_input": {"file_path": "/p/src/a.ts"}}), "deny")
+        self.assertIsNone(g({"tool_name": "Write", "agent_type": "product-manager", "tool_input": {"file_path": "/p/workspace/x/02-PRD.md"}}))
+
+    def test_refresh_check(self):
+        root = copy_repo()
+        env = {"WORKER_AGENT_TODAY": "2026-11-20"}
+        run(root, "scripts/rollback.py", "--snapshot", "init", env=env)
+        rc, out = run(root, "scripts/refresh_check.py", "--hook", env=env)
+        self.assertEqual(out.strip(), "")                      # 无过期、不足 30 天：不提醒
+        env = {"WORKER_AGENT_TODAY": "2027-03-01"}
+        rc, out = run(root, "scripts/refresh_check.py", "--hook", env=env)
+        ctx = json.loads(out)["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("不回复不会消耗 AI 用量", ctx)
+        self.assertIn("暂无使用数据", ctx)
+        rc, out = run(root, "scripts/refresh_check.py", "--hook", env=env)
+        self.assertEqual(out.strip(), "")                      # 当天去重
+        run(root, "scripts/refresh_check.py", "--snooze", "7", env={"WORKER_AGENT_TODAY": "2027-03-02"})
+        rc, out = run(root, "scripts/refresh_check.py", env={"WORKER_AGENT_TODAY": "2027-03-08"})
+        self.assertEqual(out.strip(), "")                      # 暂缓期内
+        rc, out = run(root, "scripts/refresh_check.py", env={"WORKER_AGENT_TODAY": "2027-03-09"})
+        self.assertIn("技能更新提醒", out)
+
+
+PROPOSAL = """# 测试提案
+### T-01 vite 补来源
+```yaml
+action: add_source
+skill: vite
+evidence: [https://vite.dev/test-source]
+trivial: true
+status: 待拍板
+```
+### T-02 tailwind 改为试用
+```yaml
+action: update_maturity
+skill: tailwind-css-v4
+suggested_maturity: 试用
+evidence: [https://tailwindcss.com/blog]
+published: 2026-11-01
+reason: 测试
+status: 待拍板
+```
+### T-03 jetpack-compose 暂缓（会让技能回归题退化）
+```yaml
+action: deprecate
+skill: jetpack-compose
+suggested_maturity: 暂缓
+replaced_by: [android-xml-layout]
+evidence: [https://developer.android.com/compose]
+published: 2026-11-01
+reason: 测试退化
+status: 待拍板
+```
+### T-04 经验：签到跨天
+```yaml
+action: append_lesson
+skill: postgresql
+section: 常见坑
+text: 签到按用户时区算自然日，唯一约束用 (user_id, sign_date) 防重复签到
+source_need: checkin-points
+role: backend-engineer
+scope: public
+status: 待拍板
+```
+"""
+
+
+class Proposals(unittest.TestCase):
+    def setup(self, git):
+        root = copy_repo(git=git)
+        p = os.path.join(root, "proposals", "2026-11-20-test.md")
+        open(p, "w", encoding="utf-8").write(PROPOSAL)
+        return root, p
+
+    def test_check_and_trivial_off(self):
+        root, p = self.setup(False)
+        rc, out = run(root, "scripts/apply_proposal.py", p, "--check")
+        self.assertEqual(rc, 0, out)
+        rc, out = run(root, "scripts/apply_proposal.py", p)   # auto_apply_trivial=false：什么都不应用
+        self.assertIn("没有要应用的条目", out)
+        self.assertNotIn("https://vite.dev/test-source", open(os.path.join(root, "data/skills/frontend/vite.md"), encoding="utf-8").read())
+
+    def test_trivial_on_only_trivial(self):
+        root, p = self.setup(False)
+        rp = os.path.join(root, "config", "run.yaml")
+        t = open(rp, encoding="utf-8").read()
+        open(rp, "w", encoding="utf-8").write(t.replace("auto_apply_trivial: false", "auto_apply_trivial: true"))
+        rc, out = run(root, "scripts/apply_proposal.py", p)
+        self.assertEqual(rc, 0, out)
+        self.assertIn("https://vite.dev/test-source", open(os.path.join(root, "data/skills/frontend/vite.md"), encoding="utf-8").read())
+        self.assertIn("maturity: 采用", open(os.path.join(root, "data/skills/frontend/tailwind-css-v4.md"), encoding="utf-8").read())
+
+    def test_approve_reject_git_tag_and_rollback(self):
+        root, p = self.setup(True)
+        rc, out = run(root, "scripts/apply_proposal.py", p, "--approve", "T-02,T-04", "--reject", "T-01")
+        self.assertEqual(rc, 0, out)
+        tw = open(os.path.join(root, "data/skills/frontend/tailwind-css-v4.md"), encoding="utf-8").read()
+        self.assertIn("maturity: 试用", tw)
+        self.assertIn("提案 T-02", tw)
+        pg = open(os.path.join(root, "data/skills/backend/postgresql.md"), encoding="utf-8").read()
+        self.assertIn("唯一约束用 (user_id, sign_date)", pg)
+        self.assertNotIn("https://vite.dev/test-source", open(os.path.join(root, "data/skills/frontend/vite.md"), encoding="utf-8").read())
+        self.assertIn("T-01", open(os.path.join(root, "proposals", "rejected.jsonl"), encoding="utf-8").read())
+        tags = subprocess.run(["git", "-C", root, "tag"], capture_output=True, text=True).stdout.split()
+        self.assertEqual(len([t for t in tags if t.startswith("skills-")]), 1)
+        self.assertEqual(subprocess.run(["git", "-C", root, "remote"], capture_output=True, text=True).stdout.strip(), "")
+        # 再提一次重复经验：合并、不重复写入
+        open(p, "a", encoding="utf-8").write(PROPOSAL.split("### T-04")[1].replace(" 经验：签到跨天", "### T-05 重复经验", 1))
+        p2 = os.path.join(root, "proposals", "dup.md")
+        open(p2, "w", encoding="utf-8").write("### T-05 重复\n" + "```yaml" + PROPOSAL.split("```yaml")[4])
+        rc, out = run(root, "scripts/apply_proposal.py", p2, "--approve", "all", "--no-snapshot")
+        self.assertIn("已合并", out)
+        self.assertEqual(open(os.path.join(root, "data/skills/backend/postgresql.md"), encoding="utf-8").read().count("sign_date"), 1)
+        # 回滚：先打一个初始快照再应用，回到上一个标签
+        rc, out = run(root, "scripts/rollback.py", "--list")
+        self.assertIn("skills-", out)
+
+    def test_regression_refused(self):
+        root, p = self.setup(False)
+        before = open(os.path.join(root, "data/skills/client/jetpack-compose.md"), encoding="utf-8").read()
+        rc, out = run(root, "scripts/apply_proposal.py", p, "--approve", "T-03")
+        self.assertNotEqual(rc, 0)
+        self.assertIn("回归退化，拒绝更新", out)
+        self.assertIn("CL-1", out)
+        self.assertEqual(before, open(os.path.join(root, "data/skills/client/jetpack-compose.md"), encoding="utf-8").read())
+
+    def test_rollback_non_git(self):
+        root, p = self.setup(False)
+        rc, out = run(root, "scripts/rollback.py", "--snapshot", "初始")
+        self.assertIn("skills-", out)
+        rc, out = run(root, "scripts/apply_proposal.py", p, "--approve", "T-02")
+        self.assertEqual(rc, 0, out)
+        self.assertTrue(os.path.isdir(os.path.join(root, "snapshots")))
+        rc, out = run(root, "scripts/rollback.py")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("validate 通过", out)
+        self.assertIn("maturity: 采用", open(os.path.join(root, "data/skills/frontend/tailwind-css-v4.md"), encoding="utf-8").read())
+
+    def test_rollback_git(self):
+        root, p = self.setup(True)
+        run(root, "scripts/rollback.py", "--snapshot", "初始")
+        rc, out = run(root, "scripts/apply_proposal.py", p, "--approve", "T-02")
+        self.assertEqual(rc, 0, out)
+        rc, out = run(root, "scripts/rollback.py")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("maturity: 采用", open(os.path.join(root, "data/skills/frontend/tailwind-css-v4.md"), encoding="utf-8").read())
+
+    def test_new_role_overlay(self):
+        root, _ = self.setup(False)
+        p = os.path.join(root, "proposals", "role.md")
+        open(p, "w", encoding="utf-8").write("""### R-01 提示词运营并入 AI 应用
+```yaml
+action: merge_role
+role: X-01
+role_def: {id: X-01, family: I, name: 提示词运营, positioning: 维护提示词库, terms: [{group: AI 协同, terms: [提示词库]}], tools: []}
+target: ai-app-engineer
+evidence: [https://example.com/a]
+published: 2026-11-01
+reason: 和 AI 应用工程师职责重叠高
+status: 待拍板
+```
+""")
+        rc, out = run(root, "scripts/apply_proposal.py", p, "--approve", "all", "--no-snapshot")
+        self.assertEqual(rc, 0, out)
+        rc, out = run(root, "scripts/who.py", "提示词运营")
+        self.assertIn("AI 应用 / Agent 工程师", out)
+        self.assertIn("X-01 提示词运营", open(os.path.join(root, "agents", "ai-app-engineer.md"), encoding="utf-8").read())
+
+
+class Install(unittest.TestCase):
+    def test_install_update_uninstall(self):
+        root = copy_repo()
+        proj = tempfile.mkdtemp()
+        os.makedirs(os.path.join(proj, ".claude", "agents"))
+        settings = {"permissions": {"allow": ["Bash(ls:*)"]}, "hooks": {"PreToolUse": [{"matcher": "Bash", "hooks": [{"type": "command", "command": "echo mine"}]}]}}
+        json.dump(settings, open(os.path.join(proj, ".claude", "settings.json"), "w"))
+        open(os.path.join(proj, ".claude", "agents", "architect.md"), "w").write("my own architect\n")
+        open(os.path.join(proj, ".claude", "agents", "mine.md"), "w").write("---\nname: mine\n---\n")
+        sh = os.path.join(root, "install.sh")
+        r = subprocess.run(["bash", sh, "--project", proj, "--mcp", "none"], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        agents = [f for f in os.listdir(os.path.join(proj, ".claude", "agents")) if f.endswith(".md")]
+        self.assertEqual(len(agents), 17)  # 16 + 用户自己的 mine.md
+        self.assertTrue(any(f.startswith("architect.md.bak-") for f in os.listdir(os.path.join(proj, ".claude", "agents"))))
+        s = json.load(open(os.path.join(proj, ".claude", "settings.json")))
+        self.assertEqual(s["permissions"], settings["permissions"])
+        self.assertIn("echo mine", json.dumps(s))
+        self.assertTrue(os.path.exists(os.path.join(proj, ".claude", "settings.json.bak")))
+        self.assertEqual(json.load(open(os.path.join(proj, ".claude", "settings.json.bak"))), settings)
+        # --update：改一个技能包，只替换变化的文件并打印 旧 → 新
+        sp = os.path.join(root, "data", "skills", "frontend", "vite.md")
+        t = open(sp, encoding="utf-8").read()
+        open(sp, "w", encoding="utf-8").write(t.replace("version: 1.0.0", "version: 1.0.1"))
+        r = subprocess.run(["bash", sh, "--update", "--project", proj, "--mcp", "none"], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("更新 skills/vite/SKILL.md：v1.0.0", r.stdout)
+        self.assertIn("→ v1.0.1", r.stdout)
+        self.assertNotIn("更新 agents/qa-expert.md", r.stdout)
+        # --uninstall：只删本套件
+        r = subprocess.run(["bash", sh, "--uninstall", "--project", proj], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        left = os.listdir(os.path.join(proj, ".claude", "agents"))
+        self.assertIn("mine.md", left)
+        self.assertNotIn("qa-expert.md", left)
+        s = json.load(open(os.path.join(proj, ".claude", "settings.json")))
+        self.assertEqual(s, settings)
+
+
+class Deliverables(unittest.TestCase):
+    def test_template_validation(self):
+        d = tempfile.mkdtemp()
+        p = os.path.join(d, "02-PRD.md")
+        open(p, "w", encoding="utf-8").write(open(os.path.join(REPO, "templates", "deliverables", "03-prd.md"), encoding="utf-8").read())
+        rc, out = run(REPO, "scripts/validate.py", "--deliverable", p)
+        self.assertNotEqual(rc, 0)
+        self.assertIn("必填节「AI 机会评估」为空", out)
+
+    def test_example_passes(self):
+        ws = os.path.join(REPO, "examples", "checkin-points", "workspace", "checkin-points")
+        files = [os.path.join(ws, f) for f in sorted(os.listdir(ws))
+                 if re.match(r"^\d\d-", f) and "<!-- template:" in open(os.path.join(ws, f), encoding="utf-8").read(300)]
+        self.assertGreaterEqual(len(files), 5)
+        rc, out = run(REPO, "scripts/validate.py", "--deliverable", *files)
+        self.assertEqual(rc, 0, out)
+
+
+if __name__ == "__main__":
+    unittest.main()
