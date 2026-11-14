@@ -1,0 +1,56 @@
+---
+id: cloud-cn-providers
+name: 国内公有云选型（阿里云 / 腾讯云 / 华为云）
+aliases: [阿里云, 腾讯云, 华为云, 国内云, 云服务选型, 云控制台]
+roles: [architect, backend-engineer, sre-security]
+maturity: 采用
+maturity_by_region: {cn: 采用, global: 试用}
+as_of: 2026-11-14
+version: 1.0.0
+sources:
+  - https://help.aliyun.com/
+  - https://cloud.tencent.com/
+  - https://www.huaweicloud.com/
+  - https://help.aliyun.com/zh/icp-filing/
+  - https://cloud.tencent.com/document/product/243
+  - https://www.cac.gov.cn/2024-03/22/c_1712776611775634.htm
+region: cn
+replaces: []
+replaced_by: []
+from_graph: false
+---
+
+# 国内公有云选型（阿里云 / 腾讯云 / 华为云）
+
+当前状态：三家均提供完整的 IaaS / 容器（ACK / TKE / CCE）/ 数据库 / 大数据 / AI 产品线和官方文档，并提供 ICP 备案代办入口。图谱全栈与 SRE 工具原有「云服务控制台」「云控制台」，本技能给出选型方法。
+判断理由：面向国内用户的业务受 ICP 备案、网络安全等级保护、数据本地化等要求约束，国内云是默认选择，region=cn 判「采用」；出海业务默认 AWS（见 `cloud-aws`），国内云国际站在 global 下判「试用」（适合东南亚等国内云海外节点覆盖好的地区、或想统一技术栈的团队）。
+
+## 什么时候用
+- 面向中国大陆用户的 App / Web / 小程序后端。
+- 需要和本地生态集成：微信（腾讯云）、支付宝 / 钉钉（阿里云）、鸿蒙 / 政企（华为云）。
+- 政企、金融、国资客户有信创、等保、专属云要求时（华为云、阿里云专有云等）。
+
+## 关键做法
+- 选型维度：业务所在生态、目标地域节点、核心托管产品（数据库、K8s、消息、AI 推理）成熟度、价格与折扣、团队熟悉度、客户合规要求。
+- 主云 + 少量第二云：核心业务单云深用，避免为「防锁定」把所有服务降到最低公共能力。
+- 用 Terraform 统一管理资源（三家均有官方 Provider），账号按环境 / 业务拆分，统一身份接入（RAM / CAM / IAM）。
+- 可移植层：K8s、PostgreSQL / MySQL、OpenTelemetry、Kafka 协议，降低跨云迁移成本。
+
+## 合规要点
+- 网站 / App 对公众提供服务前完成 ICP 备案（经营性业务还需 ICP 许可证），App 还需 App 备案。
+- 按《网络安全法》和等级保护制度做定级备案、测评，云上选用已通过等保的产品。
+- 个人信息与重要数据境内存储；跨境传输按《促进和规范数据跨境流动规定》判断是否需要安全评估 / 标准合同备案。
+
+## 常见坑
+- 先上线后备案：未备案域名无法在国内云 80/443 正常提供服务。
+- 只比较目录价，忽略公网带宽、跨可用区流量、日志与监控的隐性费用。
+- 各家同名产品能力差异大（如 Serverless、托管 K8s 版本节奏），以官方文档和 PoC 结果为准。
+
+## 迁移
+- 云间迁移：先迁无状态服务和对象存储，数据库用 DTS 类工具双向同步验证后切换；DNS 分权重切流。
+
+## 最佳做法
+- 选型结论写 ADR，记录评估维度、PoC 数据和放弃方案的理由，按年复审。
+
+## CHANGELOG
+- 2026-11-14 v1.0.0 首版；情报员自动核实（来源见 sources）

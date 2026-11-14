@@ -1,0 +1,71 @@
+{
+  "source": "graph.html",
+  "chain": [
+    {
+      "seq": 1,
+      "name": "市场与竞品洞察报告",
+      "owners_in_graph": "用户研究员 · 产品负责人",
+      "handoff": "交给产品经理，作为立项依据"
+    },
+    {
+      "seq": 2,
+      "name": "产品路线图与版本目标",
+      "owners_in_graph": "产品负责人 · 产品总监",
+      "handoff": "交给产品经理与项目经理，切版本"
+    },
+    {
+      "seq": 3,
+      "name": "PRD 与需求优先级表",
+      "owners_in_graph": "产品经理",
+      "handoff": "交给交互、研发、测试，进入评审"
+    },
+    {
+      "seq": 4,
+      "name": "交互原型与状态说明",
+      "owners_in_graph": "交互设计师",
+      "handoff": "交给 UI 与研发，作为实现依据"
+    },
+    {
+      "seq": 5,
+      "name": "视觉稿与设计系统标注",
+      "owners_in_graph": "UI 设计师 · 设计系统负责人",
+      "handoff": "交给前端与客户端，进入开发"
+    },
+    {
+      "seq": 6,
+      "name": "技术方案与接口契约（ADR）",
+      "owners_in_graph": "架构师 · 后端",
+      "handoff": "交给前端 / 客户端 / 测试，锁定契约"
+    },
+    {
+      "seq": 7,
+      "name": "代码合并请求与自测记录",
+      "owners_in_graph": "各端工程师",
+      "handoff": "交给架构师评审、测试接手"
+    },
+    {
+      "seq": 8,
+      "name": "测试报告与缺陷清单",
+      "owners_in_graph": "测试工程师 · 测试开发",
+      "handoff": "交给研发修复、项目经理判风险"
+    },
+    {
+      "seq": 9,
+      "name": "上线单与灰度 / 回滚方案",
+      "owners_in_graph": "SRE · 项目经理",
+      "handoff": "交给全体，进入发布窗口"
+    },
+    {
+      "seq": 10,
+      "name": "监控看板与告警规则",
+      "owners_in_graph": "SRE · 后端工程师",
+      "handoff": "交给值班与全体研发，持续观测"
+    },
+    {
+      "seq": 11,
+      "name": "数据看板与迭代复盘报告",
+      "owners_in_graph": "数据分析师 · 项目经理",
+      "handoff": "交给产品与管理层，决定下一版"
+    }
+  ]
+}

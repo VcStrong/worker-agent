@@ -1,0 +1,60 @@
+# 技术情报员登记的一手信息源（REQ-021）。/skills-refresh 只侦察选中角色（roles）相关的源。
+# 只认一手来源：官方博客 / 发布说明 / GitHub Releases / 标准组织 / 政府网站。
+sources:
+  # ---- 跨角色 ----
+  - {id: thoughtworks-radar, name: Thoughtworks 技术雷达, url: "https://www.thoughtworks.com/radar", roles: [architect, frontend-engineer, backend-engineer, sre-security, qa-expert, ai-app-engineer, client-engineer]}
+  - {id: cncf-blog, name: CNCF 博客与项目毕业公告, url: "https://www.cncf.io/blog/", roles: [architect, sre-security, backend-engineer]}
+  # ---- 产品 / 设计 / 数据 ----
+  - {id: figma-releases, name: Figma Release Notes, url: "https://www.figma.com/release-notes/", roles: [ux-designer, product-manager]}
+  - {id: mastergo-updates, name: MasterGo 更新日志, url: "https://mastergo.com/", roles: [ux-designer]}
+  - {id: w3c-design-tokens, name: W3C Design Tokens Community Group, url: "https://www.designtokens.org/", roles: [ux-designer]}
+  - {id: posthog-changelog, name: PostHog Changelog, url: "https://posthog.com/changelog", roles: [product-manager, data-growth]}
+  - {id: volcengine-datatester, name: 火山引擎 DataTester 文档, url: "https://www.volcengine.com/docs/6287", roles: [product-manager, data-growth]}
+  - {id: dbt-blog, name: dbt Labs 博客与发布说明, url: "https://docs.getdbt.com/docs/dbt-versions/dbt-cloud-release-notes", roles: [data-growth, backend-engineer]}
+  - {id: sensorsdata-docs, name: 神策数据文档, url: "https://manual.sensorsdata.cn/", roles: [data-growth]}
+  # ---- 前端 ----
+  - {id: react-blog, name: React Blog, url: "https://react.dev/blog", roles: [frontend-engineer]}
+  - {id: nextjs-blog, name: Next.js Blog, url: "https://nextjs.org/blog", roles: [frontend-engineer]}
+  - {id: vue-blog, name: Vue.js Blog, url: "https://blog.vuejs.org/", roles: [frontend-engineer]}
+  - {id: vite-blog, name: Vite Blog, url: "https://vite.dev/blog", roles: [frontend-engineer]}
+  - {id: ts-blog, name: TypeScript Blog, url: "https://devblogs.microsoft.com/typescript/", roles: [frontend-engineer]}
+  - {id: webdev-blog, name: web.dev（Web Vitals）, url: "https://web.dev/blog", roles: [frontend-engineer]}
+  # ---- 客户端 ----
+  - {id: android-dev-blog, name: Android Developers Blog, url: "https://android-developers.googleblog.com/", roles: [client-engineer]}
+  - {id: kotlin-blog, name: Kotlin Blog, url: "https://blog.jetbrains.com/kotlin/", roles: [client-engineer]}
+  - {id: apple-dev-news, name: Apple Developer News, url: "https://developer.apple.com/news/", roles: [client-engineer]}
+  - {id: swift-blog, name: Swift.org Blog, url: "https://www.swift.org/blog/", roles: [client-engineer]}
+  - {id: harmonyos-dev, name: 华为开发者联盟 HarmonyOS 文档与公告, url: "https://developer.huawei.com/consumer/cn/harmonyos/", roles: [client-engineer]}
+  - {id: flutter-blog, name: Flutter Blog, url: "https://blog.flutter.dev/", roles: [client-engineer]}
+  - {id: wechat-miniprogram, name: 微信小程序开发文档更新日志, url: "https://developers.weixin.qq.com/miniprogram/dev/framework/release/", roles: [client-engineer, frontend-engineer]}
+  # ---- 后端 / 架构 / SRE ----
+  - {id: go-blog, name: Go Blog, url: "https://go.dev/blog/", roles: [backend-engineer]}
+  - {id: spring-blog, name: Spring Blog, url: "https://spring.io/blog", roles: [backend-engineer]}
+  - {id: postgresql-news, name: PostgreSQL News, url: "https://www.postgresql.org/about/newsarchive/", roles: [backend-engineer]}
+  - {id: apache-iceberg, name: Apache Iceberg Releases, url: "https://iceberg.apache.org/releases/", roles: [backend-engineer]}
+  - {id: starrocks-releases, name: StarRocks Releases, url: "https://github.com/StarRocks/starrocks/releases", roles: [backend-engineer]}
+  - {id: k8s-blog, name: Kubernetes Blog, url: "https://kubernetes.io/blog/", roles: [architect, sre-security]}
+  - {id: otel-blog, name: OpenTelemetry Blog, url: "https://opentelemetry.io/blog/", roles: [architect, sre-security, backend-engineer]}
+  - {id: argocd-releases, name: Argo CD Releases, url: "https://github.com/argoproj/argo-cd/releases", roles: [sre-security]}
+  - {id: openssf, name: OpenSSF / SLSA, url: "https://slsa.dev/", roles: [sre-security]}
+  - {id: finops-foundation, name: FinOps Foundation, url: "https://www.finops.org/", roles: [architect]}
+  # ---- 测试 ----
+  - {id: playwright-releases, name: Playwright Release Notes, url: "https://playwright.dev/docs/release-notes", roles: [qa-expert, frontend-engineer]}
+  - {id: pact-docs, name: Pact 文档, url: "https://docs.pact.io/", roles: [qa-expert]}
+  - {id: k6-releases, name: Grafana k6 Releases, url: "https://github.com/grafana/k6/releases", roles: [qa-expert]}
+  # ---- AI ----
+  - {id: anthropic-news, name: Anthropic News 与文档, url: "https://www.anthropic.com/news", roles: [ai-app-engineer, ai-product-manager]}
+  - {id: openai-changelog, name: OpenAI Changelog, url: "https://platform.openai.com/docs/changelog", roles: [ai-app-engineer, ai-product-manager]}
+  - {id: mcp-spec, name: Model Context Protocol 规范, url: "https://modelcontextprotocol.io/", roles: [ai-app-engineer]}
+  - {id: langgraph-releases, name: LangGraph Releases, url: "https://github.com/langchain-ai/langgraph/releases", roles: [ai-app-engineer]}
+  - {id: aliyun-bailian, name: 阿里云百炼 / 通义千问文档, url: "https://help.aliyun.com/zh/model-studio/", roles: [ai-app-engineer, ai-product-manager, ai-infra-mlops]}
+  - {id: deepseek-news, name: DeepSeek API 文档与更新, url: "https://api-docs.deepseek.com/", roles: [ai-app-engineer, ai-product-manager]}
+  - {id: volcengine-ark, name: 火山方舟（豆包大模型）文档, url: "https://www.volcengine.com/docs/82379", roles: [ai-app-engineer, ai-product-manager]}
+  - {id: huggingface-blog, name: Hugging Face Blog, url: "https://huggingface.co/blog", roles: [model-algorithm-engineer, ai-infra-mlops]}
+  - {id: peft-releases, name: PEFT Releases, url: "https://github.com/huggingface/peft/releases", roles: [model-algorithm-engineer]}
+  - {id: vllm-releases, name: vLLM Releases, url: "https://github.com/vllm-project/vllm/releases", roles: [ai-infra-mlops]}
+  - {id: sglang-releases, name: SGLang Releases, url: "https://github.com/sgl-project/sglang/releases", roles: [ai-infra-mlops]}
+  - {id: mlflow-releases, name: MLflow Releases, url: "https://github.com/mlflow/mlflow/releases", roles: [ai-infra-mlops]}
+  - {id: owasp-genai, name: OWASP GenAI Security Project, url: "https://genai.owasp.org/", roles: [ai-eval-compliance, sre-security]}
+  - {id: cac-gov, name: 国家互联网信息办公室（政策法规、备案公告）, url: "https://www.cac.gov.cn/", roles: [ai-eval-compliance, ai-product-manager]}
+  - {id: eu-ai-act, name: EUR-Lex / EU AI Act, url: "https://eur-lex.europa.eu/eli/reg/2024/1689/oj", roles: [ai-eval-compliance]}

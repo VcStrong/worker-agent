@@ -1,0 +1,2228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>互联网产品研发流程 · 角色知识图谱</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23EDF1F4'/%3E%3Cpath d='M4 16h24M16 4v24' stroke='%23C4441E' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='4.5' fill='none' stroke='%2312233A' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://miaoda.feishu.cn">
+<link rel="preconnect" href="https://sf3-scmcdn-cn.feishucdn.com" crossorigin>
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Serif+SC:wght@600;700&family=Noto+Sans+SC:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#EDF1F4;
+  --paper-2:#E4EAEF;
+  --paper-3:#DCE4EA;
+  --ink:#12233A;
+  --ink-2:#3D5168;
+  --ink-3:#6C8093;
+  --ink-4:#9AAAB8;
+  --rule:#BFCBD6;
+  --rule-soft:#D3DCE4;
+  --red:#C4441E;
+  --red-soft:#E8D3CA;
+  --sans:"Noto Sans SC","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  --serif:"Noto Serif SC","Songti SC","STSong","SimSun",serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--paper);color:var(--ink);
+  font-family:var(--sans);font-size:15px;line-height:1.72;
+  font-feature-settings:"tnum" 1;
+}
+body.drawer-open{overflow:hidden}
+h1,h2,h3,h4{margin:0;font-family:var(--serif);font-weight:700;letter-spacing:.01em}
+p{margin:0}
+ul,ol{margin:0;padding:0}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+::selection{background:var(--red);color:#fff}
+:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+
+/* ---------- 基础排版 ---------- */
+.wrap{width:100%;max-width:1260px;margin:0 auto;padding:0 18px}
+.eyebrow{
+  font-family:var(--sans);font-size:11px;letter-spacing:.24em;color:var(--ink-3);
+  display:flex;align-items:center;gap:10px;
+}
+.eyebrow i{display:block;width:26px;height:1px;background:var(--red)}
+.sec-head{
+  border-top:1px solid var(--ink);padding-top:14px;
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 18px;
+}
+.sec-no{
+  font-family:var(--serif);font-weight:700;font-size:13px;letter-spacing:.08em;color:var(--red);
+}
+.sec-title{font-size:22px;line-height:1.3}
+.sec-note{color:var(--ink-3);font-size:13px;max-width:100%}
+
+/* ---------- 顶栏 ---------- */
+.topbar{
+  position:sticky;top:0;z-index:40;background:rgba(237,241,244,.94);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--rule);
+}
+.topbar-in{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:9px 0}
+.brand{display:flex;align-items:center;gap:8px;flex:1 1 auto;min-width:0}
+.brand svg{width:20px;height:20px;flex:none}
+.brand span{
+  font-family:var(--serif);font-weight:700;font-size:14px;letter-spacing:.02em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.searchbox{position:relative;display:flex;align-items:center;flex:1 0 100%;width:100%}
+.searchbox svg{position:absolute;left:10px;width:15px;height:15px;pointer-events:none;color:var(--ink-3)}
+.searchbox input{
+  width:100%;height:34px;background:#fff;border:1px solid var(--rule);
+  border-radius:0;padding:0 64px 0 31px;font-size:14px;font-family:var(--sans);color:var(--ink);
+  outline-offset:2px;
+}
+.searchbox input::placeholder{color:var(--ink-4)}
+.searchbox input:focus{border-color:var(--ink)}
+.searchbox .hint{
+  position:absolute;right:38px;font-size:11px;color:var(--ink-4);letter-spacing:.08em;
+}
+.clear{
+  position:absolute;right:6px;width:24px;height:24px;display:none;
+  align-items:center;justify-content:center;font-size:16px;color:var(--ink-3);
+}
+.clear.on{display:flex}
+.clear:hover{color:var(--red)}
+
+/* ---------- Hero ---------- */
+.hero{padding-top:40px;padding-bottom:12px}
+.hero h1{
+  font-size:clamp(28px,7vw,54px);line-height:1.14;letter-spacing:.01em;
+  max-width:16em;
+}
+.hero .lede{
+  margin-top:18px;max-width:40em;color:var(--ink-2);font-size:15px;line-height:1.85;
+}
+.hero-meta{
+  margin-top:26px;display:grid;grid-template-columns:repeat(2,1fr);
+  border-top:1px solid var(--rule);
+}
+.meta-cell{padding:10px 0 12px;border-bottom:1px solid var(--rule-soft)}
+.meta-cell + .meta-cell{padding-left:14px}
+.meta-cell:nth-child(2n){border-left:1px solid var(--rule-soft)}
+.meta-n{font-family:var(--serif);font-weight:700;font-size:26px;line-height:1.1}
+.meta-n em{font-style:normal;font-size:13px;color:var(--ink-3);margin-left:3px;font-family:var(--sans);font-weight:400}
+.meta-l{font-size:12px;color:var(--ink-3);letter-spacing:.06em;margin-top:2px}
+
+/* ---------- 流程主干 ---------- */
+.spine-wrap{padding-top:34px;padding-bottom:40px}
+.spine{display:grid;grid-template-columns:1fr;margin-top:26px;position:relative}
+.node{
+  position:relative;padding:16px 0 16px 0;border-top:1px solid var(--rule-soft);
+  text-align:left;display:flex;flex-direction:column;justify-content:flex-start;width:100%;
+}
+.node:first-child{border-top:1px solid var(--rule)}
+.node-no{font-family:var(--serif);font-weight:700;font-size:12px;color:var(--ink-3);letter-spacing:.1em}
+.node-name{font-family:var(--serif);font-weight:700;font-size:16px;margin-top:2px;line-height:1.35}
+.node-desc{font-size:12.5px;color:var(--ink-3);margin-top:4px;line-height:1.6}
+.node-lead{font-size:11.5px;color:var(--red);margin-top:7px;letter-spacing:.04em}
+.node:hover .node-name,.node:hover .node-no{color:var(--red)}
+.node.on{background:rgba(196,68,30,.06)}
+.node.on .node-name,.node.on .node-no{color:var(--red)}
+.node.on::after{
+  content:"筛选中";position:absolute;right:0;top:18px;font-size:10px;color:var(--red);letter-spacing:.1em;
+}
+
+/* ---------- 角色图谱 ---------- */
+.roles-sec{padding-top:36px;padding-bottom:10px}
+.filterbar{display:flex;flex-wrap:wrap;gap:6px;margin-top:22px}
+.chip{
+  border:1px solid var(--rule);padding:5px 10px;font-size:12.5px;color:var(--ink-2);
+  display:inline-flex;align-items:center;gap:6px;line-height:1.5;
+}
+.chip b{font-weight:500;font-family:var(--serif);font-size:11px;color:var(--ink-3)}
+.chip:hover{border-color:var(--ink);color:var(--ink)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.chip.on b{color:rgba(255,255,255,.62)}
+.result-line{
+  margin-top:14px;font-size:12.5px;color:var(--ink-3);display:flex;gap:8px;align-items:center;flex-wrap:wrap;
+  min-height:20px;
+}
+.result-line strong{color:var(--red);font-weight:500}
+
+.role-grid{display:grid;grid-template-columns:1fr;gap:0;margin-top:6px;border-top:1px solid var(--rule)}
+.card{
+  position:relative;text-align:left;width:100%;
+  border-bottom:1px solid var(--rule-soft);padding:16px 0 15px;
+  display:flex;flex-direction:column;justify-content:flex-start;
+  transition:background .15s;
+}
+.card:hover{background:rgba(255,255,255,.6)}
+.card-top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.fam-code{
+  font-family:var(--serif);font-size:10.5px;font-weight:700;letter-spacing:.1em;
+  border:1px solid var(--rule);padding:1px 4px;color:var(--ink-3);
+}
+.card-id{font-size:10.5px;letter-spacing:.14em;color:var(--ink-4)}
+.card-name{font-family:var(--serif);font-weight:700;font-size:19px;line-height:1.3}
+.card-tag{margin-top:5px;color:var(--ink-2);font-size:13px;line-height:1.7}
+.card-out{margin-top:9px;font-size:12px;color:var(--ink-3);line-height:1.7}
+.card-out b{color:var(--ink-2);font-weight:500}
+.card-foot{display:flex;align-items:center;gap:12px;margin-top:auto;padding-top:11px}
+.ticks{display:flex;gap:3px;flex:none}
+.tick{width:13px;height:3px;background:var(--rule)}
+.tick.p{background:#8FA3B3}
+.tick.l{background:var(--red)}
+.card-arrow{
+  margin-left:auto;font-size:12px;color:var(--ink-4);letter-spacing:.04em;flex:none;
+}
+.card:hover .card-arrow{color:var(--red)}
+
+/* ---------- 矩阵 ---------- */
+.matrix-sec{padding-top:40px;padding-bottom:10px}
+.matrix-scroll{margin-top:20px;overflow-x:auto;border:1px solid var(--rule);background:#F4F7F9}
+table.mx{border-collapse:collapse;table-layout:fixed;width:100%;min-width:880px}
+table.mx col.name{width:196px}
+table.mx col.st{width:74px}
+.mx thead th{
+  background:var(--ink);color:#fff;z-index:2;
+  font-family:var(--sans);font-weight:400;font-size:11px;line-height:1.35;
+  padding:9px 4px;text-align:center;border-left:1px solid rgba(255,255,255,.14);
+}
+.mx thead th:first-child{text-align:left;padding-left:10px;border-left:0}
+.mx thead th span{display:block;font-size:10px;color:rgba(255,255,255,.62);letter-spacing:.04em;margin-top:2px}
+.mx tbody td{
+  border-top:1px solid var(--rule-soft);border-left:1px solid var(--rule-soft);
+  padding:5px 3px;text-align:center;font-size:13px;
+}
+.mx tbody td.nm{
+  text-align:left;padding-left:10px;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:#EEF3F6;
+}
+.mx tbody td.nm i{font-style:normal;color:var(--ink-4);font-size:10px;margin-right:5px;letter-spacing:.08em}
+.mx .lead{color:var(--red)}
+.mx .part{color:var(--ink-3)}
+.mx tr.grp td{
+  background:var(--paper-3);font-family:var(--serif);font-weight:700;font-size:12px;letter-spacing:.06em;
+  color:var(--ink-2);padding:6px 10px;text-align:left;
+}
+.legend{display:flex;gap:16px;margin-top:10px;font-size:11.5px;color:var(--ink-3);flex-wrap:wrap}
+.legend i{font-style:normal;font-size:13px;margin-right:4px}
+
+/* ---------- 交付物链路 ---------- */
+.chain-sec{padding-top:40px;padding-bottom:10px}
+.chain{margin-top:24px;border-top:1px solid var(--rule)}
+.step{
+  display:grid;grid-template-columns:34px 1fr;gap:3px 10px;padding:14px 0;
+  border-bottom:1px solid var(--rule-soft);align-items:start;
+}
+.step-no{
+  font-family:var(--serif);font-weight:700;font-size:13px;color:var(--red);letter-spacing:.06em;
+  padding-top:3px;grid-row:1 / span 3;grid-column:1;
+}
+.step-art{grid-column:2;grid-row:1}
+.step-own{grid-column:2;grid-row:2}
+.step-to{grid-column:2;grid-row:3}
+.step-art{font-family:var(--serif);font-weight:700;font-size:15.5px;line-height:1.4}
+.step-own{font-size:12.5px;color:var(--ink-2);margin-top:4px}
+.step-own em{font-style:normal;color:var(--ink-4);font-size:11px;margin-right:5px;letter-spacing:.06em}
+.step-to{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+
+/* ---------- 摩擦点 ---------- */
+.fric-sec{padding-top:40px;padding-bottom:60px}
+.fric-grid{display:grid;grid-template-columns:1fr;gap:0;margin-top:22px;border-top:1px solid var(--rule)}
+.fric{padding:16px 0;border-bottom:1px solid var(--rule-soft)}
+.fric-q{font-family:var(--serif);font-weight:700;font-size:15px;line-height:1.45}
+.fric-q span{color:var(--red);margin-right:6px}
+.fric-a{font-size:13px;color:var(--ink-2);margin-top:6px;line-height:1.75}
+
+/* ---------- 页脚 ---------- */
+.foot{border-top:1px solid var(--ink);padding-top:18px;padding-bottom:34px;font-size:12px;color:var(--ink-3);line-height:1.8}
+.foot p{max-width:60em}
+
+/* ---------- 抽屉 ---------- */
+.backdrop{
+  position:fixed;inset:0;background:rgba(18,35,58,.34);z-index:60;
+  opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.backdrop.on{opacity:1;pointer-events:auto}
+.drawer{
+  position:fixed;top:0;right:0;bottom:0;width:100%;max-width:520px;z-index:70;
+  background:var(--paper);border-left:1px solid var(--ink);
+  transform:translateX(100%);transition:transform .24s cubic-bezier(.2,.7,.2,1);
+  overflow-y:auto;overscroll-behavior:contain;
+}
+.drawer.on{transform:translateX(0)}
+@media (prefers-reduced-motion:reduce){
+  .drawer{transition:none}
+  .backdrop{transition:none}
+}
+.dw-head{
+  position:sticky;top:0;background:var(--paper);border-bottom:1px solid var(--rule);
+  padding:12px 18px;display:flex;align-items:flex-start;gap:12px;
+}
+.dw-head .t{flex:1;min-width:0}
+.dw-fam{font-size:10.5px;letter-spacing:.16em;color:var(--red)}
+.dw-name{font-family:var(--serif);font-weight:700;font-size:23px;line-height:1.25;margin-top:2px}
+.dw-id{font-size:10.5px;letter-spacing:.12em;color:var(--ink-4);margin-top:2px}
+.dw-close{width:32px;height:32px;flex:none;border:1px solid var(--rule);display:flex;align-items:center;justify-content:center}
+.dw-close:hover{border-color:var(--red);color:var(--red)}
+.dw-body{padding:16px 18px 40px}
+.dw-tag{font-size:13.5px;color:var(--ink-2);line-height:1.8;border-left:2px solid var(--red);padding-left:10px}
+.dw-block{margin-top:20px}
+.dw-block h4{
+  font-family:var(--sans);font-weight:500;font-size:11px;letter-spacing:.18em;color:var(--ink-3);
+  padding-bottom:6px;border-bottom:1px solid var(--rule-soft);
+}
+.dw-block ul{margin-top:9px;list-style:none}
+.dw-block ul li{font-size:13px;line-height:1.75;color:var(--ink);padding-left:12px;position:relative;margin-bottom:5px}
+.dw-block ul li::before{content:"";position:absolute;left:0;top:.72em;width:4px;height:1px;background:var(--red)}
+.dw-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:10px}
+.dw-tags span{border:1px solid var(--rule);font-size:12px;padding:2px 7px;color:var(--ink-2);background:#fff}
+.dw-flow{display:grid;grid-template-columns:1fr;gap:0;margin-top:10px;font-size:12.5px;line-height:1.7}
+.dw-flow div{padding:7px 0;border-bottom:1px dotted var(--rule)}
+.dw-flow em{font-style:normal;font-size:11px;letter-spacing:.1em;color:var(--ink-4);margin-right:8px}
+.dw-stage{display:flex;flex-wrap:wrap;gap:4px;margin-top:10px}
+.dw-stage b{
+  font-weight:400;font-size:11.5px;padding:2px 7px;border:1px solid var(--rule-soft);color:var(--ink-4);
+  font-family:var(--sans);
+}
+.dw-stage b.l{border-color:var(--red);color:var(--red);background:rgba(196,68,30,.06)}
+.dw-stage b.p{border-color:var(--ink-3);color:var(--ink-2)}
+
+.mark{background:rgba(196,68,30,.16);color:var(--red);padding:0 1px}
+.empty{padding:40px 0;color:var(--ink-3);font-size:13.5px}
+
+/* 卡片术语预览 */
+.card-terms{
+  margin-top:7px;font-size:11.5px;color:var(--ink-3);line-height:1.6;
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;
+}
+.card-terms b{font-weight:400;color:var(--ink-4);letter-spacing:.04em;margin-right:5px}
+
+/* 抽屉：术语 / 潜规则 / 工作内容 */
+.dw-tg{margin-top:12px}
+.dw-tg-name{
+  font-size:10px;letter-spacing:.16em;color:var(--red);display:block;margin-bottom:6px;
+}
+.dw-tlist{display:flex;flex-wrap:wrap;gap:4px}
+.dw-tlist span{
+  border:1px solid var(--rule-soft);background:#F6F9FB;font-size:11.5px;padding:1px 6px;
+  color:var(--ink-2);line-height:1.75;max-width:100%;overflow:hidden;text-overflow:ellipsis;
+}
+.dw-rules{margin-top:10px;border-left:2px solid var(--red);padding-left:13px}
+.dw-rules div{font-size:12.5px;line-height:1.85;color:var(--ink);padding:7px 0;border-bottom:1px dotted var(--rule)}
+.dw-rules div:last-child{border-bottom:0}
+.dw-rules i{font-style:normal;font-family:var(--serif);font-size:10.5px;color:var(--red);letter-spacing:.08em;margin-right:7px}
+
+/* 热门术语 */
+.hot-terms{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:12px}
+.hot-terms .lbl{font-size:10.5px;letter-spacing:.14em;color:var(--ink-4)}
+.tchip{
+  border:1px dashed var(--rule);font-size:11.5px;padding:2px 8px;color:var(--ink-2);line-height:1.7;
+}
+.tchip:hover{border-color:var(--red);color:var(--red);border-style:solid}
+
+/* ---------- 断点 ---------- */
+@media (min-width:768px){
+  body{font-size:15px}
+  .wrap{padding:0 30px}
+  .topbar-in{padding:10px 0;flex-wrap:nowrap;gap:12px}
+  .searchbox{flex:0 0 auto;width:320px}
+  .hero{padding-top:64px;padding-bottom:16px}
+  .hero-meta{grid-template-columns:repeat(4,1fr)}
+  .meta-cell:nth-child(2n){border-left:0}
+  .meta-cell + .meta-cell{border-left:1px solid var(--rule-soft);padding-left:18px}
+  .hero-meta{border-top:1px solid var(--rule)}
+  .role-grid{grid-template-columns:repeat(2,1fr);column-gap:34px}
+  .fric-grid{grid-template-columns:repeat(2,1fr);column-gap:34px}
+  .step{grid-template-columns:46px 1fr;gap:4px 14px;padding:15px 0}
+  .sec-title{font-size:25px}
+  .sec-note{margin-left:auto}
+}
+@media (min-width:1080px){
+  .wrap{padding:0 44px}
+  .role-grid{grid-template-columns:repeat(3,1fr);column-gap:32px}
+  .card{padding:18px 0 17px}
+  .spine{grid-template-columns:repeat(9,1fr);padding-top:32px;border-top:0}
+  .spine::before{
+    content:"";position:absolute;left:0;right:0;top:64px;height:1px;background:#9FB2C3;
+  }
+  .node{border-top:0;padding:0 14px 0 0;margin:0}
+  .node:first-child{border-top:0}
+  .node-no{position:relative;height:32px;display:flex;align-items:flex-end;padding-bottom:11px}
+  .node-no::after{
+    content:"";position:absolute;left:0;top:32px;margin-top:-4px;width:7px;height:7px;
+    background:var(--red);border-radius:50%;
+    box-shadow:0 0 0 1px var(--paper);
+  }
+  .node-name{padding-top:14px;margin-top:0}
+  .node.on::after{top:2px}
+  .node:hover .node-no::after,.node.on .node-no::after{background:var(--ink)}
+  .node.on{background:none}
+  .node.on .node-name::after{content:" · 筛选中";font-size:10px;color:var(--red);font-family:var(--sans);font-weight:400}
+  .fric-grid{column-gap:40px}
+  .step{grid-template-columns:54px minmax(0,1.06fr) minmax(0,.86fr) minmax(0,1.16fr);gap:24px;align-items:baseline}
+  .step-no{grid-row:1;grid-column:1;padding-top:0}
+  .step-own{grid-column:3;grid-row:1;margin-top:0}
+  .step-to{grid-column:4;grid-row:1;margin-top:0}
+}
+@media (min-width:1200px){
+  .searchbox{width:380px}
+  .hero h1{max-width:20em}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true">
+        <path d="M2 12h20M12 2v20" stroke="#C4441E"/>
+        <circle cx="12" cy="12" r="4.2" stroke="#12233A"/>
+      </svg>
+      <span>研发角色知识图谱</span>
+    </div>
+    <div class="searchbox">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+        <circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5L21 21"/>
+      </svg>
+      <input id="q" type="search" autocomplete="off" placeholder="搜索岗位、术语、工具，如 RAG / Agent / Prompt / 埋点" aria-label="搜索岗位与知识">
+      <span class="hint">/</span>
+      <button class="clear" id="clear" aria-label="清空搜索">×</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero wrap">
+    <div class="eyebrow"><i></i>PRODUCT R&amp;D · ROLE ATLAS</div>
+    <h1 style="margin-top:16px">一个想法，<br>怎么穿过九道工序变成产品</h1>
+    <p class="lede">
+      这张图谱把互联网产品研发拆成 9 个阶段，标出每个阶段谁主导、谁参与、交出什么、交给谁。
+      48 个岗位按职能族归档，其中 15 个是 AI 时代的新岗位，每张卡片都是一个可检索的条目——可以按岗位名查，也可以按"埋点""灰度""RxJava"这类活儿反查是谁在做。
+      点开任一岗位，还有它的工作内容、一整套从公开招聘要求里能对上的术语词库（每个岗位都含 AI 协同词条），以及没人写进 JD 的潜规则。
+    </p>
+    <div class="hero-meta">
+      <div class="meta-cell"><div class="meta-n">48<em>个</em></div><div class="meta-l">岗位条目</div></div>
+      <div class="meta-cell"><div class="meta-n">9<em>阶段</em></div><div class="meta-l">研发主流程</div></div>
+      <div class="meta-cell"><div class="meta-n">10<em>族</em></div><div class="meta-l">职能划分</div></div>
+      <div class="meta-cell"><div class="meta-n"><span id="termTotal">0</span><em>条</em></div><div class="meta-l">岗位术语词条</div></div>
+    </div>
+  </section>
+
+  <section class="spine-wrap wrap" id="flow">
+    <div class="sec-head">
+      <span class="sec-no">01</span>
+      <h2 class="sec-title">流程主干</h2>
+      <span class="sec-note">点击任一阶段，图谱里只留该阶段的参与者</span>
+    </div>
+    <div class="spine" id="spine"></div>
+  </section>
+
+  <section class="roles-sec wrap" id="roles">
+    <div class="sec-head">
+      <span class="sec-no">02</span>
+      <h2 class="sec-title">角色图谱</h2>
+      <span class="sec-note">卡片下方的细条＝该岗位在 9 个阶段的分布</span>
+    </div>
+    <div class="filterbar" id="fams"></div>
+    <div class="result-line" id="resultLine"></div>
+    <div class="hot-terms" id="hotTerms"></div>
+    <div class="role-grid" id="roleGrid"></div>
+  </section>
+
+  <section class="matrix-sec wrap" id="matrix">
+    <div class="sec-head">
+      <span class="sec-no">03</span>
+      <h2 class="sec-title">阶段 × 角色 矩阵</h2>
+      <span class="sec-note">看协作密度：谁在每个阶段是主导、谁只是参与</span>
+    </div>
+    <div class="matrix-scroll">
+      <table class="mx" id="mx">
+        <colgroup>
+          <col class="name">
+          <col class="st"><col class="st"><col class="st"><col class="st"><col class="st">
+          <col class="st"><col class="st"><col class="st"><col class="st">
+        </colgroup>
+        <thead id="mxHead"></thead>
+        <tbody id="mxBody"></tbody>
+      </table>
+    </div>
+    <div class="legend">
+      <span><i class="lead">●</i>主导：对这一步的结果负责</span>
+      <span><i class="part">◐</i>参与：投入人力或提供输入</span>
+      <span><i style="color:var(--rule)">·</i>空白：不参与</span>
+    </div>
+  </section>
+
+  <section class="chain-sec wrap" id="chain">
+    <div class="sec-head">
+      <span class="sec-no">04</span>
+      <h2 class="sec-title">交付物链路</h2>
+      <span class="sec-note">11 个关键产物，从洞察一路传到复盘</span>
+    </div>
+    <div class="chain" id="chainList"></div>
+  </section>
+
+  <section class="fric-sec wrap" id="friction">
+    <div class="sec-head">
+      <span class="sec-no">05</span>
+      <h2 class="sec-title">交界处的六个高频摩擦</h2>
+      <span class="sec-note">知识图谱真正的用处，是给扯皮的地方定归属</span>
+    </div>
+    <div class="fric-grid">
+      <div class="fric">
+        <div class="fric-q"><span>01</span>需求能不能中途改</div>
+        <div class="fric-a">产品经理有权调整优先级，但已经排进版本的需求要改，必须同时拿到项目经理（排期影响）和研发负责人（工作量影响）的确认。会议结论写成"改动内容／影响范围／延后哪一项"，落在需求文档里，不是口头一句"这个简单"。</div>
+      </div>
+      <div class="fric">
+        <div class="fric-q"><span>02</span>设计还原度算不算缺陷</div>
+        <div class="fric-a">主流程错、组件规范被破坏、间距在栅格体系外——算缺陷，走缺陷流程。像素级偏差、非关键状态下的间距浮动，归设计走查清单，一次性收敛，不进 Bug 列表。判断标准的解释权在 UI／设计系统负责人，不在一线开发与评审人之间拉锯。</div>
+      </div>
+      <div class="fric">
+        <div class="fric-q"><span>03</span>排期是谁给出的承诺</div>
+        <div class="fric-a">研发给的是"评估"，项目经理给的是"承诺"，两者必须分开说。对外同步的日期只能由评估人确认过的版本签发；绕过评估人直接向老板承诺日期，是排期失真的第一来源。</div>
+      </div>
+      <div class="fric">
+        <div class="fric-q"><span>04</span>缺陷该谁修</div>
+        <div class="fric-a">按"谁引入谁修"定责任人，按"复现路径落在哪个模块"定归属团队。环境不通、配置缺失、依赖库版本冲突，归运维／SRE 与基础架构，不算业务缺陷；测试负责给出可复现路径，不负责替开发定位代码。</div>
+      </div>
+      <div class="fric">
+        <div class="fric-q"><span>05</span>指标掉了算谁的</div>
+        <div class="fric-a">增长类指标（DAU、转化、留存）归产品与增长团队；稳定性指标（可用性、错误率、时延、发布失败率）归研发与运维。两套看板分开挂，触发告警的阈值和值班人写清楚，否则掉点之后先开会再排查，损失的是时间。</div>
+      </div>
+      <div class="fric">
+        <div class="fric-q"><span>06</span>谁能决定上线窗口</div>
+        <div class="fric-a">由项目经理（或发布经理）统一维护发布日历，避开大促与业务高峰。窗口之外的紧急发布，需要技术负责人与 SRE 双签，并附回滚预案；灰度比例、放量节奏由 SRE 与研发共同定，产品只对"要不要全量"表态。</div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot wrap">
+  <p>说明：本图谱按国内主流互联网团队的通行分工整理，覆盖"从想法到上线再到迭代"的完整链路。不同公司在岗位命名、合并与拆分上差异很大——小团队常把交互与 UI 合并、把运维交给云服务、让产品兼项目管理；大厂则会把数据、算法、安全、设计系统进一步细分。矩阵中的"主导／参与"是典型情形，不是制度规定，落地时以各团队的 RACI 表为准。</p>
+</footer>
+
+<div class="backdrop" id="backdrop"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="dwName">
+  <div class="dw-head">
+    <div class="t">
+      <div class="dw-fam" id="dwFam"></div>
+      <h2 class="dw-name" id="dwName"></h2>
+      <div class="dw-id" id="dwId"></div>
+    </div>
+    <button class="dw-close" id="dwClose" aria-label="关闭">
+      <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 5l14 14M19 5L5 19"/></svg>
+    </button>
+  </div>
+  <div class="dw-body" id="dwBody"></div>
+</aside>
+
+<script>
+/* ===== 数据：九个阶段 ===== */
+const STAGES = [
+  {no:"01",name:"战略与市场洞察",sn:"战略洞察",desc:"看行业、看竞品、看用户，回答“做不做、为谁做、凭什么赢”",lead:"产品负责人 · 用户研究员"},
+  {no:"02",name:"需求定义与立项",sn:"需求立项",desc:"需求进池、排优先级、写 PRD、论证商业价值与投入",lead:"产品经理"},
+  {no:"03",name:"方案评审与排期",sn:"方案排期",desc:"需求评审、技术可行性、资源与里程碑对齐，定版本边界",lead:"项目经理 · 产品经理"},
+  {no:"04",name:"交互与视觉设计",sn:"交互设计",desc:"信息架构、任务流程、原型、视觉稿与设计走查",lead:"交互设计师 · UI 设计师"},
+  {no:"05",name:"技术方案与架构设计",sn:"技术方案",desc:"技术选型、接口契约、数据模型、架构评审与容量评估",lead:"架构师 · AI 基础设施"},
+  {no:"06",name:"编码开发与联调",sn:"开发联调",desc:"各端开发、接口联调、Code Review、自测后提测",lead:"各端工程师 · AI 应用开发 · 研发经理"},
+  {no:"07",name:"测试与质量保障",sn:"测试保障",desc:"用例、功能/性能/兼容/安全测试，出准入结论",lead:"测试工程师 · AI 评测 · 安全工程师"},
+  {no:"08",name:"发布上线与灰度",sn:"发布上线",desc:"部署、灰度放量、监控告警、回滚预案与应急",lead:"SRE · 项目经理"},
+  {no:"09",name:"运营增长与迭代复盘",sn:"运营复盘",desc:"看板、实验、反馈归集、复盘与下一版规划",lead:"数据分析师 · 产品运营"}
+];
+
+const FAMS = [
+  {code:"P",name:"产品"},
+  {code:"D",name:"设计"},
+  {code:"E",name:"研发"},
+  {code:"A",name:"数据与 AI"},
+  {code:"Q",name:"质量"},
+  {code:"O",name:"运维与安全"},
+  {code:"G",name:"运营与增长"},
+  {code:"M",name:"项目与管理"},
+  {code:"S",name:"支撑职能"},
+  {code:"I",name:"AI 与智能"}
+];
+
+/* ===== 数据：48 个岗位 ===== */
+const ROLES = [
+/* ---- 产品 ---- */
+{id:"P-01",f:"P",n:"产品经理",t:"把用户的问题翻译成可交付的需求，为需求的正确性与优先级负责。",
+ d:["收集并判断需求真伪，分清“用户说的”和“用户要的”","写 PRD、用户故事与验收标准，定义异常态与边界条件","在价值、成本、风险之间排优先级，守住版本范围","跟进开发到上线，做验收，对核心指标负责"],
+ o:["PRD 与需求文档","需求池与优先级表","原型草图","验收结论","版本目标与指标定义"],
+ k:["用户与场景分析","结构化写作","数据分析","竞品拆解","跨职能推动","商业判断"],
+ u:"用户研究员 / 数据分析师 / 业务方 / 客服与销售反馈",
+ dn:"交互设计师、UI 设计师、研发、测试、运营",
+ s:[1,2,3,4,5,6,7,8,9], l:[2,3],
+ tl:["飞书文档","Figma","Jira","神策 / GrowingIO","Excel"],
+ m:"需求交付率、版本目标达成度、需求变更率、核心业务指标",
+ p:"产品助理 → 产品经理 → 高级产品经理 → 产品专家 / 产品线负责人"},
+
+{id:"P-02",f:"P",n:"产品负责人 / 产品总监",t:"决定做哪个方向、不做哪个方向，把公司目标拆成版本路线图。",
+ d:["制定产品战略与路线图，定义北极星指标","拆版本目标，切里程碑，配资源","主持立项与关键评审，拍板取舍","搭产品团队与梯队，统一方法论文档"],
+ o:["产品战略与路线图","版本规划与目标树","立项 / 结项决议","指标体系设计"],
+ k:["商业与市场判断","指标体系设计","组织与人才管理","高层沟通","决策与取舍"],
+ u:"业务线负责人 / CEO / 市场与销售",
+ dn:"产品经理、设计负责人、研发负责人、运营",
+ s:[1,2,3,8,9], l:[1,2],
+ tl:["数据看板","OKR 系统","竞品情报库"],
+ m:"业务目标达成、路线图兑现率、团队人效",
+ p:"高级产品经理 → 产品总监 → CPO / 业务线负责人"},
+
+{id:"P-03",f:"P",n:"用户研究员",t:"用可验证的证据回答“用户到底怎么想”，拦住拍脑袋的需求。",
+ d:["设计定性与定量研究：访谈、问卷、田野、日志分析","做可用性测试与行为观察，记录真实卡点","输出用户画像、旅程地图与机会点清单","上线后回访真实用户，验证判断是否成立"],
+ o:["研究报告与洞察纪要","用户画像 / 旅程地图","可用性测试结论","需求机会清单"],
+ k:["访谈与提问","问卷设计与抽样","统计基础","可用性测试","报告叙事"],
+ u:"产品负责人 / 产品经理（研究命题）",
+ dn:"产品经理、交互设计师、数据分析师",
+ s:[1,4,7,9], l:[1],
+ tl:["问卷星 / Qualtrics","Dovetail","录音转写","行为回放工具"],
+ m:"洞察被采纳率、需求返工下降、可用性问题前置发现数",
+ p:"研究助理 → 用户研究员 → 高级研究员 → 研究负责人"},
+
+{id:"P-04",f:"P",n:"产品运营",t:"把功能变成用户真的会用、会回来的东西，管功能上线之后的“活”。",
+ d:["制定上线推广、引导与培训方案","做用户分层、生命周期管理与召回","收集一线反馈，转成需求回流给产品","盯功能渗透率与使用深度，做干预实验"],
+ o:["上线推广方案","用户分层与运营策略","反馈汇总与需求输入","功能渗透分析"],
+ k:["用户运营","活动策划","文案","数据敏感度","沟通与安抚"],
+ u:"产品经理 / 数据分析师 / 客服",
+ dn:"产品经理（需求回流）、内容运营、用户增长",
+ s:[8,9], l:[9],
+ tl:["运营后台","CRM","推送系统","埋点看板"],
+ m:"功能渗透率、留存、活跃、反馈闭环时长",
+ p:"运营专员 → 产品运营 → 高级运营 → 用户运营负责人"},
+
+/* ---- 设计 ---- */
+{id:"D-01",f:"D",n:"交互设计师",t:"把需求变成一条用户走得通、不迷惑的路径。",
+ d:["画信息架构与任务流程，定义页面结构与状态","出低保真到高保真原型，标清交互逻辑与异常态","与产品共同评审方案，砍掉不必要的步骤","参与可用性测试并按结论迭代"],
+ o:["信息架构图","流程图与状态机","交互原型（含异常态）","交互说明文档"],
+ k:["信息架构","流程与状态设计","原型工具","可用性思维","需求理解"],
+ u:"产品经理（PRD）、用户研究员",
+ dn:"UI 设计师、前端 / 客户端、测试",
+ s:[2,3,4,5,7], l:[4],
+ tl:["Figma","Axure","Sketch","流程图工具"],
+ m:"关键流程完成率、操作步数、交互返工次数",
+ p:"交互助理 → 交互设计师 → 高级交互 → 设计负责人"},
+
+{id:"D-02",f:"D",n:"UI / 视觉设计师",t:"让界面在像素层面成立：层级、色彩、字重、间距。",
+ d:["依据设计系统做界面视觉、图标与插画","维护组件库、色彩与字体规范","输出切图、标注与多端适配规则","做设计走查，收敛还原度偏差"],
+ o:["视觉稿与组件库","设计规范 / Design Token","切图与多端适配标注","走查问题清单"],
+ k:["版式与色彩","组件化思维","图标与插画","多端适配","规范维护"],
+ u:"交互设计师、品牌 / 市场",
+ dn:"前端、客户端、设计系统负责人",
+ s:[4,5,7], l:[4],
+ tl:["Figma","Adobe 系列","设计 Token 插件","蓝湖 / Zeplin"],
+ m:"还原度评分、组件复用率、走查问题数",
+ p:"视觉设计师 → 高级视觉 → 设计系统负责人 / 设计主管"},
+
+{id:"D-03",f:"D",n:"设计系统负责人",t:"把一次性设计变成可复用资产，管住多产品线的一致性。",
+ d:["定义组件库、Design Token 与使用边界","制定设计评审与走查机制","管设计团队分工与产出节奏","推动设计与研发共用一套组件规范"],
+ o:["设计系统文档","组件库与 Token 表","评审与走查机制","设计团队排期"],
+ k:["系统化设计","前端实现常识","规范治理","跨团队推动","团队管理"],
+ u:"产品负责人、技术负责人",
+ dn:"UI、交互、前端、客户端",
+ s:[3,4,7], l:[4],
+ tl:["Figma（Variants / Token）","Storybook","Git 版本管理"],
+ m:"一致性缺陷数、组件覆盖率、设计交付周期",
+ p:"高级 UI → 设计系统负责人 → 设计总监"},
+
+/* ---- 研发 ---- */
+{id:"E-01",f:"E",n:"前端工程师",t:"把设计稿变成用户在浏览器里点得动的那一层。",
+ d:["实现页面与交互，处理状态、异常与降级","维护组件与公共库，控制包体积与首屏性能","与后端联调接口，处理错误、超时与重试","做兼容性、可访问性与埋点接入"],
+ o:["可运行的前端代码","组件与工具库","性能与兼容报告","前端埋点方案"],
+ k:["HTML / CSS / JS","框架（React / Vue）","工程化与构建","性能优化","接口联调"],
+ u:"交互与 UI 设计、后端接口契约、架构师",
+ dn:"测试、后端、SRE",
+ s:[4,5,6,7,8], l:[6],
+ tl:["VS Code","Vite / Webpack","Chrome DevTools","Git","Sentry"],
+ m:"首屏与交互性能、线上错误率、需求按期交付",
+ p:"初级 → 中级 → 高级 → 前端专家 / 前端负责人"},
+
+{id:"E-02",f:"E",n:"客户端工程师（iOS / Android）",t:"在别人的系统上做产品，管住包体、崩溃、机型与版本兼容。",
+ d:["实现原生界面与交互，适配多机型与折叠屏","处理启动速度、内存、耗电与包体积","接入推送、支付、埋点、热修复等能力","做灰度放量、崩溃治理与线上问题排查"],
+ o:["客户端代码与安装包","兼容性适配清单","崩溃与性能报告","灰度发布计划"],
+ k:["Kotlin / Swift","自定义 View / UIKit","性能与内存","网络与多线程","机型适配"],
+ u:"交互与 UI 设计、后端接口、架构师",
+ dn:"测试、SRE、运营（渠道包）",
+ s:[5,6,7,8], l:[6],
+ tl:["Android Studio / Xcode","真机矩阵","Charles","Bugly / Firebase"],
+ m:"崩溃率、启动耗时、包体积、灰度覆盖率",
+ p:"初级 → 中级 → 高级 → 客户端专家 / 端技术负责人"},
+
+{id:"E-03",f:"E",n:"后端工程师",t:"把业务规则落成服务、接口和数据，扛住并发与一致性。",
+ d:["设计并实现服务与接口，写清错误码与幂等","建数据模型与库表，处理事务与一致性","做缓存、队列、限流与降级","写单测，配合压测与线上排障"],
+ o:["服务代码与接口文档","数据模型与库表设计","单元测试","性能与容量评估"],
+ k:["一门后端语言（Go / Java / Python）","数据库与 SQL","缓存与消息队列","分布式常识","接口设计"],
+ u:"PRD、架构师、DBA",
+ dn:"前端 / 客户端、测试、SRE",
+ s:[5,6,7,8], l:[6],
+ tl:["Go / Java 工具链","MySQL / Redis / Kafka","Postman","日志与链路追踪"],
+ m:"接口时延与成功率、线上故障数、需求交付周期",
+ p:"初级 → 中级 → 高级 → 后端专家 / 服务负责人"},
+
+{id:"E-04",f:"E",n:"架构师 / 技术负责人",t:"决定系统怎么长，为六个月后的可维护性买单。",
+ d:["做技术选型与整体架构，划清模块边界","定义接口契约、数据模型与调用链","主持架构评审，识别容量、依赖与单点风险","拆技术任务，定技术债偿还节奏"],
+ o:["架构方案与选型对比","接口契约 / API 规范","架构评审结论","技术演进路线"],
+ k:["分布式架构","领域建模","容量与稳定性设计","技术选型判断","方案表达"],
+ u:"产品路线图、业务量预测、SRE 容量数据",
+ dn:"前端、客户端、后端、测试、SRE",
+ s:[3,5,6,8], l:[5],
+ tl:["架构图工具","压测与容量评估","链路追踪","ADR 文档"],
+ m:"架构评审通过率、线上重大故障数、交付吞吐、技术债占比",
+ p:"高级工程师 → 架构师 → 技术负责人 → CTO"},
+
+{id:"E-05",f:"E",n:"全栈工程师",t:"小团队里一个人把一条功能从库表做到界面。",
+ d:["独立完成小模块的前后端，快速验证想法","维护内部工具、后台与运营脚本","补位联调与线上排障","在早期项目里承担“先跑通”的角色"],
+ o:["端到端可用的功能模块","内部工具与后台","快速原型"],
+ k:["前端框架","后端语言","数据库","部署与运维基础","快速学习"],
+ u:"产品经理、架构师",
+ dn:"测试、SRE、产品",
+ s:[5,6,7,8], l:[6],
+ tl:["全栈框架","云服务控制台","Docker","Git"],
+ m:"功能交付速度、返工率、线上问题闭环",
+ p:"全栈工程师 → 技术骨干 → 小型团队技术负责人"},
+
+{id:"E-06",f:"E",n:"基础架构 / 中间件工程师",t:"造团队共用的地基：网关、消息、存储、研发工具链。",
+ d:["建设与维护网关、RPC、消息、配置中心","做研发效能工具：CI/CD、代码扫描、环境编排","定接入规范，治理重复建设","支撑业务方的容量与稳定性诉求"],
+ o:["中间件与平台能力","接入规范与 SDK","CI/CD 流水线","效能度量报告"],
+ k:["分布式中间件","容器与编排","CI/CD","可观测性","平台化思维"],
+ u:"业务方需求、SRE 容量规划",
+ dn:"全体研发、SRE",
+ s:[5,6,8], l:[5,6],
+ tl:["Kubernetes","Nginx / Istio","Kafka","GitLab CI","Prometheus"],
+ m:"平台可用性、接入方数量、构建时长、发布成功率",
+ p:"后端工程师 → 中间件 / 平台工程师 → 基础架构负责人"},
+
+/* ---- 数据与算法 ---- */
+{id:"A-01",f:"A",n:"数据分析师",t:"把“感觉”换成“数字”，为决策提供可复核的口径。",
+ d:["定义指标口径与埋点方案，管住一致性","做日常报表、漏斗与分群分析","支撑 A/B 实验的设计与显著性判断","做归因与异常定位，产出结论而不只是图"],
+ o:["指标体系与埋点文档","数据看板与日报","专题分析报告","实验评估结论"],
+ k:["SQL","统计与实验设计","指标体系设计","可视化","业务理解"],
+ u:"产品经理（问题）、数据开发（数据）、运营",
+ dn:"产品经理、运营、管理层、算法",
+ s:[1,2,7,8,9], l:[9],
+ tl:["SQL / Hive","BI（Superset / Tableau）","Python","神策"],
+ m:"口径一致性、分析结论被采纳数、看板使用率",
+ p:"分析助理 → 数据分析师 → 高级分析师 → 数据负责人"},
+
+{id:"A-02",f:"A",n:"数据开发 / 数仓工程师",t:"保证数据能被信任：采集、清洗、建模、准时送达。",
+ d:["建数仓分层与维度建模，管元数据与血缘","搭离线 / 实时数据管道，处理乱序与迟到数据","做数据质量校验与告警","支撑报表、算法与实验平台的数据需求"],
+ o:["数仓模型与表结构","ETL / 实时管道","数据质量规则","数据字典与血缘图"],
+ k:["SQL 与建模","调度与管道","数仓分层","数据治理","性能调优"],
+ u:"数据分析师、算法、业务方口径",
+ dn:"分析师、算法、BI",
+ s:[4,5,6,9], l:[6],
+ tl:["Hive / Spark / Flink","Airflow","ClickHouse","元数据平台"],
+ m:"数据准时率、质量告警数、任务失败率、查询成本",
+ p:"数据开发 → 数仓工程师 → 数据平台负责人"},
+
+{id:"A-03",f:"A",n:"算法工程师",t:"用模型把“千人一面”变成“猜得准”。",
+ d:["定问题与评估指标，做离线评估与线上实验","特征工程、模型训练、调参与部署","优化召回 / 排序 / 策略链路","监控效果衰减，准备线上兜底"],
+ o:["模型与训练脚本","离线评估报告","线上实验结论","推理服务与兜底策略"],
+ k:["机器学习 / 深度学习","特征工程","实验设计","工程化部署","业务建模"],
+ u:"产品与业务目标、数据分析师、数据开发",
+ dn:"后端（服务集成）、数据分析师、产品",
+ s:[2,5,6,7,8,9], l:[5,6],
+ tl:["PyTorch / TensorFlow","Spark","A/B 平台","特征平台"],
+ m:"离线指标、线上增益、推理时延与成本、效果衰减周期",
+ p:"算法工程师 → 高级算法 → 算法专家 / 算法负责人"},
+
+{id:"A-04",f:"A",n:"AI / 大模型应用工程师",t:"把模型能力接进产品：提示、检索、评测、成本与兜底。",
+ d:["设计 Agent / RAG 链路与工具调用","建评测集与回归机制，控制幻觉与拒答","做提示工程、微调与蒸馏选型","管 token 成本、时延与内容安全合规"],
+ o:["AI 能力链路设计","评测集与评测报告","提示与工具规范","成本与安全方案"],
+ k:["LLM 应用工程","RAG 与向量检索","评测与可观测","提示工程","成本控制"],
+ u:"产品需求、数据与知识库、法务合规",
+ dn:"后端、前端、测试、运营",
+ s:[2,5,6,7,9], l:[5,6],
+ tl:["向量库","LangChain / LlamaIndex","评测平台","模型 API 网关"],
+ m:"任务成功率、幻觉率、P95 时延、单次调用成本",
+ p:"后端 / 算法 → AI 应用工程师 → AI 平台 / 应用负责人"},
+
+/* ---- 质量 ---- */
+{id:"Q-01",f:"Q",n:"测试工程师",t:"用可复现的证据说明“这一版能不能发”。",
+ d:["从 PRD 拆测试点，写用例与验收清单","做功能、兼容、异常与边界测试","提交可复现的缺陷单，跟到关闭","出测试报告，给上线准入结论"],
+ o:["测试用例与用例库","缺陷单与回归清单","测试报告","上线准入结论"],
+ k:["用例设计","缺陷描述与复现","兼容性测试","接口测试","业务理解"],
+ u:"PRD、交互稿、研发提测包",
+ dn:"研发（缺陷）、项目经理（质量风险）、SRE",
+ s:[2,3,7,8], l:[7],
+ tl:["测试管理平台","Postman","抓包工具","云真机"],
+ m:"漏测率、缺陷发现阶段、回归覆盖率、上线后 P0 数",
+ p:"测试工程师 → 高级测试 → 测试负责人 / 质量专家"},
+
+{id:"Q-02",f:"Q",n:"测试开发工程师",t:"把重复的验证交给机器，把人的时间留给判断。",
+ d:["搭自动化框架与用例：UI、接口、单测","建 CI 质量门禁与回归流水线","做性能、稳定性与混沌测试","造测试数据与 Mock 环境"],
+ o:["自动化框架与脚本","质量门禁与流水线","性能 / 稳定性报告","测试工具"],
+ k:["编程能力","自动化框架","性能测试","CI/CD","测试环境治理"],
+ u:"QA 用例、研发接口、SRE 环境",
+ dn:"QA、研发、项目经理",
+ s:[5,6,7,8], l:[7],
+ tl:["Pytest / JUnit","Selenium / Appium","JMeter / Locust","Jenkins","造数平台"],
+ m:"自动化覆盖率、回归时长、门禁拦截率、环境可用性",
+ p:"测试开发 → 高级测开 → 效能 / 质量平台负责人"},
+
+/* ---- 运维与安全 ---- */
+{id:"O-01",f:"O",n:"SRE / 运维工程师",t:"让系统在流量、故障和发布面前都不塌。",
+ d:["做容量规划、部署与扩缩容","建监控告警与值班响应，写应急预案","管灰度发布与回滚，控制爆炸半径","做故障复盘与稳定性治理（SLO / 错误预算）"],
+ o:["部署与容量方案","监控告警与值班表","灰度 / 回滚预案","故障复盘报告"],
+ k:["Linux 与网络","容器与编排","可观测性","容量与成本","应急指挥"],
+ u:"架构师的容量评估、研发的发布需求",
+ dn:"全体研发、项目经理、客服",
+ s:[5,6,8], l:[8],
+ tl:["Kubernetes","Prometheus / Grafana","日志平台","发布系统","云控制台"],
+ m:"可用性 SLO、MTTR、发布成功率、故障数",
+ p:"运维工程师 → SRE → 稳定性 / 平台负责人"},
+
+{id:"O-02",f:"O",n:"DBA / 数据库管理员",t:"管住那块最不能丢的数据：备份、性能、变更。",
+ d:["做库表设计评审与索引优化","管备份恢复与容灾演练","执行 DDL 与数据订正，走审批","做慢查询治理与容量扩容"],
+ o:["库表设计与索引建议","备份 / 恢复预案","变更审批记录","性能诊断报告"],
+ k:["MySQL / PG 原理","索引与执行计划","高可用与容灾","变更管理","数据安全"],
+ u:"后端的数据模型、架构师",
+ dn:"后端、SRE、数据分析师",
+ s:[5,6,8], l:[5],
+ tl:["MySQL / PostgreSQL","备份工具","慢查询分析","监控平台"],
+ m:"备份可恢复率、慢查占比、变更事故数、容量水位",
+ p:"DBA → 高级 DBA → 数据平台 / 存储负责人"},
+
+{id:"O-03",f:"O",n:"安全工程师",t:"在别人想办法进来之前，先把门关上。",
+ d:["做威胁建模与安全评审","做渗透测试、漏洞扫描与修复跟踪","管权限、密钥、数据脱敏与合规","建应急响应流程，处理安全事件"],
+ o:["安全评审意见","渗透 / 漏洞报告与修复单","权限与密钥方案","应急响应预案"],
+ k:["Web / App 安全","渗透测试","密码与权限","隐私合规","应急响应"],
+ u:"架构方案、法务合规要求",
+ dn:"研发、SRE、法务",
+ s:[5,7,8,9], l:[7],
+ tl:["Burp Suite","漏洞扫描器","SAST / DAST","密钥管理"],
+ m:"高危漏洞数、修复时长、安全事件数、合规通过率",
+ p:"安全工程师 → 高级安全 → 安全负责人"},
+
+/* ---- 运营与增长 ---- */
+{id:"G-01",f:"G",n:"用户运营",t:"分层、触达、召回，把人留住并让他们更愿意用。",
+ d:["建用户分层与生命周期模型","设计触达策略并控打扰：推送、短信、站内","做召回、促活与流失预警","跑运营实验，评估真实效果"],
+ o:["用户分层模型","触达策略与文案","流失预警机制","运营实验结论"],
+ k:["用户分层","触达与文案","数据分析","实验设计","用户心理"],
+ u:"产品功能、数据分析师",
+ dn:"内容运营、用户增长、产品经理（反馈）",
+ s:[8,9], l:[9],
+ tl:["CRM","推送平台","埋点看板","自动化营销工具"],
+ m:"留存、召回率、触达打开率、退订率",
+ p:"运营专员 → 用户运营 → 用户增长负责人"},
+
+{id:"G-02",f:"G",n:"内容运营",t:"管内容的生产、分发与质量，让内容能带来留存。",
+ d:["定内容策略、栏目与选题","组织生产（自产 / 签约 / UGC）与审核","做分发、标签与推荐位运营","建内容质量与安全审核标准"],
+ o:["内容策略与选题库","生产与审核流程","分发规则","内容质量报告"],
+ k:["选题与写作","内容审核","分发与标签","数据敏感度","版权常识"],
+ u:"产品定位、品牌 / 市场",
+ dn:"推荐算法、用户运营、设计（素材）",
+ s:[1,8,9], l:[9],
+ tl:["CMS","内容审核平台","数据看板","素材库"],
+ m:"内容产量与质量分、消费时长、互动率、违规率",
+ p:"内容编辑 → 内容运营 → 内容负责人"},
+
+{id:"G-03",f:"G",n:"活动运营",t:"用一场活动在短时间内拉动一个明确指标。",
+ d:["定活动目标与玩法：拉新、促活、转化","排期、预算、奖品与风控规则","联动设计、研发、客服做落地","做活动监控、防刷与复盘"],
+ o:["活动方案与预算","玩法规则与风控策略","上线物料","活动复盘报告"],
+ k:["活动策划","预算与 ROI","风控与防刷","项目推动","文案创意"],
+ u:"业务目标、产品、市场预算",
+ dn:"设计、研发、客服、财务",
+ s:[2,3,6,8,9], l:[9],
+ tl:["活动配置后台","优惠券 / 奖品系统","风控规则引擎","数据看板"],
+ m:"活动 ROI、参与率、转化增量、超预算率",
+ p:"活动运营 → 高级活动运营 → 增长 / 营销负责人"},
+
+{id:"G-04",f:"G",n:"用户增长 / 投放",t:"用实验和渠道把增长做成可复制的流程，而不是一次爆发。",
+ d:["找增长杠杆：渠道、漏斗、裂变、定价","设计并跑 A/B 实验，管实验平台与显著性","管投放预算、素材与回收周期（ROI / LTV）","做漏斗诊断，推动产品改点"],
+ o:["增长模型与实验清单","渠道投放方案","漏斗诊断报告","增长看板"],
+ k:["增长模型（AARRR）","实验设计与统计","投放与归因","素材判断","成本核算"],
+ u:"数据分析师、产品、市场预算",
+ dn:"产品（需求）、设计（素材）、渠道方",
+ s:[1,2,9], l:[9],
+ tl:["实验平台","投放后台","归因工具","BI"],
+ m:"CAC、ROI、转化率提升、实验胜率",
+ p:"增长运营 → 增长产品 / 增长负责人 → CMO"},
+
+/* ---- 项目与管理 ---- */
+{id:"M-01",f:"M",n:"项目经理 / PMO",t:"让多线并行的交付不撞车：排期、依赖、风险、沟通。",
+ d:["拆里程碑、排版本计划，管依赖与关键路径","主持需求评审与站会，跟踪风险与阻塞","维护发布日历与上线窗口","做结项复盘，沉淀流程改进"],
+ o:["版本排期与里程碑","风险与阻塞清单","发布日历","复盘与流程改进"],
+ k:["计划与拆解","依赖与风险管理","跨团队沟通","流程建设","数据化跟踪"],
+ u:"产品路线图、各团队评估",
+ dn:"全体交付团队、管理层",
+ s:[3,6,7,8,9], l:[3,8],
+ tl:["飞书项目 / Jira","甘特图","风险登记表","周报模板"],
+ m:"按期交付率、延期天数、风险前置发现率",
+ p:"项目助理 → 项目经理 → 高级 PM / PMO 负责人"},
+
+{id:"M-02",f:"M",n:"Scrum Master / 敏捷教练",t:"管流程而不是管人：让团队自己的节奏变快。",
+ d:["组织站会、评审、回顾，保证节奏不断","拆障碍，推改进项落地","做度量（周期时间、吞吐）并暴露瓶颈","辅导团队与产品负责人改工作方式"],
+ o:["迭代节奏与会议机制","改进项清单","效能度量看板","团队协作约定"],
+ k:["敏捷框架（Scrum / Kanban）","引导与教练","度量分析","冲突处理"],
+ u:"团队现状、管理层改进意图",
+ dn:"研发、测试、产品、项目经理",
+ s:[3,6,7,9], l:[3],
+ tl:["Jira / 看板","度量工具","回顾工作坊"],
+ m:"迭代达成率、周期时间、改进项完成率",
+ p:"SM → 高级 SM → 敏捷教练 / 效能负责人"},
+
+{id:"M-03",f:"M",n:"研发经理 / 技术管理者",t:"对“人、交付、技术方向”三件事同时负责。",
+ d:["组团队、定分工、做绩效与成长辅导","对交付结果与技术质量负责","参与技术选型，控制技术债","向上对齐目标，向下翻译成任务"],
+ o:["团队分工与梯队计划","交付承诺与质量目标","技术规划","绩效与成长反馈"],
+ k:["团队管理","交付管理","技术判断","沟通与辅导","目标拆解"],
+ u:"技术负责人 / CTO、产品路线图",
+ dn:"前端、客户端、后端、测试、SRE",
+ s:[3,5,6,7,9], l:[3,6],
+ tl:["OKR 系统","研发效能看板","招聘与绩效系统"],
+ m:"交付达成、线上质量、人效、人才留存",
+ p:"技术骨干 → 研发经理 → 研发总监 → CTO"},
+
+{id:"M-04",f:"M",n:"技术总监 / CTO",t:"定技术方向与组织形态，为长期竞争力负责。",
+ d:["定技术战略与架构演进方向","定组织形态、职级与协作机制","管技术预算、基础设施成本与合规","对外代表技术，对内平衡业务与技术"],
+ o:["技术战略与路线图","组织与职级体系","预算与成本方案","技术风险判断"],
+ k:["技术战略","组织设计","成本与预算","高层协同","风险判断"],
+ u:"CEO / 业务目标、行业趋势",
+ dn:"架构师、研发经理、SRE、安全",
+ s:[1,3,5,8], l:[1,3],
+ tl:["OKR","成本看板","行业情报"],
+ m:"技术投入产出、稳定性、人才结构、创新落地数",
+ p:"研发总监 → 技术 VP → CTO"},
+
+/* ---- 支撑 ---- */
+{id:"S-01",f:"S",n:"HRBP / 招聘",t:"让团队在需要人的时候有人，在需要变的时候能变。",
+ d:["定岗位画像与职级标准，做招聘与面试安排","做人才盘点、绩效与激励落地","处理组织调整、员工关系与合规","做培训与成长体系"],
+ o:["岗位画像与 JD","招聘进度与人才库","绩效与激励方案","组织与培训方案"],
+ k:["招聘与面试","职级与绩效","劳动法与员工关系","组织诊断","沟通"],
+ u:"业务负责人的人才需求、公司制度",
+ dn:"全体团队、财务、法务",
+ s:[1,9], l:[],
+ tl:["ATS 招聘系统","HRIS","绩效系统"],
+ m:"招聘周期、到岗率、留存率、人岗匹配度",
+ p:"招聘专员 → HRBP → HR 负责人"},
+
+{id:"S-02",f:"S",n:"法务 / 合规",t:"把“能不能做”提前说清楚，别等出事再补。",
+ d:["审合同、协议与对外文案","做隐私政策、数据合规与资质许可","评估新业务的法律风险与边界","处理纠纷、投诉与监管沟通"],
+ o:["合同与协议意见","隐私 / 合规方案","风险评估结论","资质与备案"],
+ k:["合同法","数据与隐私合规","知识产权","监管沟通","风险识别"],
+ u:"产品方案、市场与商务",
+ dn:"产品、研发、安全、市场",
+ s:[1,2,8], l:[],
+ tl:["合同管理系统","合规知识库","备案平台"],
+ m:"合同审核时长、合规事件数、资质齐备率",
+ p:"法务专员 → 法务 / 合规负责人"},
+
+{id:"S-03",f:"S",n:"客服 / 用户支持",t:"站在用户那头，也是产品最真实的需求入口。",
+ d:["处理咨询、投诉与退款，守住响应时效","建知识库与话术，做自助与机器人分流","归集高频问题，形成需求与缺陷输入","参与上线前的服务预案准备"],
+ o:["服务工单与知识库","高频问题清单","需求 / 缺陷输入","服务预案"],
+ k:["沟通与安抚","业务熟练度","工单系统","问题归类","情绪管理"],
+ u:"产品功能、运营活动、缺陷信息",
+ dn:"产品经理、研发、运营",
+ s:[8,9], l:[9],
+ tl:["工单系统","在线客服 / 机器人","知识库"],
+ m:"首响时长、解决率、满意度、问题升级率",
+ p:"客服专员 → 客服组长 → 服务体验负责人"},
+
+/* ---- AI 新岗：产品 ---- */
+{id:"P-05",f:"P",n:"AI 产品经理",t:"把模型能力翻译成可用、可交付、可兜底的 AI 功能，同时管住幻觉与成本。",
+ d:["判断场景是否值得用大模型，划清能力边界","设计提示词、检索、工具调用与兜底路径","定义评测集与验收标准，管住幻觉与成本","把模型效果、token 成本与合规一起走完上线"],
+ o:["AI 功能 PRD 与能力边界说明","评测集与验收标准","提示词策略与兜底方案","调用量与成本模型"],
+ k:["大模型能力理解","Prompt 设计","场景拆解","评测与数据意识","成本核算"],
+ u:"业务方 / 算法 / 数据 / 合规",
+ dn:"算法工程师、AI 应用开发、AI 体验设计、测试、运营",
+ s:[1,2,5,7,9], l:[2],
+ tl:["Prompt 调试台","Dify / Coze","评测平台","数据看板"],
+ m:"任务成功率、幻觉率、采纳率、单次调用成本、转人工率",
+ p:"产品经理 → AI 产品经理 → AI 产品负责人"},
+
+/* ---- AI 新岗：设计 ---- */
+{id:"D-04",f:"D",n:"AI 体验设计师",t:"设计人与模型协作的界面：流式输出、等待、纠错、可控与信任。",
+ d:["设计对话式与生成式交互范式，定会话结构","定义流式、等待、失败与降级的体验细节","设计用户纠错、重试、编辑与反馈闭环","把模型的不确定性翻译成用户能理解的状态"],
+ o:["AI 交互范式与流程","状态设计与兜底文案","生成结果的可控组件","体验评测清单"],
+ k:["交互设计","对话设计","不确定性表达","文案与信任设计","用户研究方法"],
+ u:"AI 产品经理 / 用户研究员 / 算法",
+ dn:"UI 设计师、AI 应用开发、测试",
+ s:[1,4,7], l:[4],
+ tl:["Figma","ProtoPie","提示词调试台","可用性测试工具"],
+ m:"任务完成率、重试率、信任度评分、反馈采纳率",
+ p:"交互设计师 → AI 体验设计师 → 体验设计负责人"},
+
+/* ---- AI 新岗：研发 ---- */
+{id:"E-07",f:"E",n:"AI 研发效能工程师",t:"把 AI 编码工具装进团队的工作流，并用度量证明它真的提效了。",
+ d:["搭团队 AI 编码工具链与使用规范","维护代码库索引、上下文注入与 MCP 工具","做 AI 代码评审、门禁与误用治理","度量提效与风险，做培训与推广"],
+ o:["AI 编码工具链与规范","MCP 工具与知识注入方案","提效度量报告","质量门禁规则"],
+ k:["工程化能力","代码理解与重构","工具链集成","度量与培训"],
+ u:"研发经理 / 架构师 / 各端工程师",
+ dn:"全体研发、测试、SRE",
+ s:[5,6,8], l:[],
+ tl:["Cursor","Claude Code","GitHub Copilot","MCP","GitLab CI"],
+ m:"工具采纳率、AI 代码缺陷率、交付周期、token 成本",
+ p:"高级工程师 → AI 效能工程师 → 研发效能负责人"},
+
+/* ---- AI 新岗：运维与安全 ---- */
+{id:"O-04",f:"O",n:"AI 安全与合规专家",t:"管住模型的输入输出风险，也管住算法备案与生成式服务合规。",
+ d:["做提示词注入、越狱、数据外泄的攻防与红队","建内容安全审核、红线词库与拦截策略","办算法备案、生成式 AI 服务合规与评估","做模型输出审计、追溯与责任界定"],
+ o:["安全评测与红队报告","内容安全策略与词库","备案材料与合规结论","输出审计日志"],
+ k:["攻防能力","内容合规","法规理解","风险分级","跨部门推动"],
+ u:"算法 / AI 应用开发 / 法务",
+ dn:"AI 产品、研发、运营、管理层",
+ s:[5,6,7,8,9], l:[],
+ tl:["红队评测集","内容审核平台","Burp Suite","备案申报系统"],
+ m:"高危用例数、拦截率、误杀率、备案通过率、安全事件数",
+ p:"安全工程师 → AI 安全专家 → 安全合规负责人"},
+
+/* ---- AI 新岗：运营 ---- */
+{id:"G-05",f:"G",n:"AIGC 内容 / 数字人运营",t:"用生成式工具规模化产内容，同时守住质量、品牌与合规。",
+ d:["建 AIGC 生产流程、模板库与批量工具","运营数字人、虚拟主播与直播场景","做内容质检、人工兜底与违规处理","盯内容消费、转化与成本"],
+ o:["AIGC 生产 SOP 与模板库","数字人形象与话术资产","内容质检记录","内容数据复盘"],
+ k:["内容策划","生成工具使用","质检与审美","数据敏感度","版权意识"],
+ u:"AI 产品 / 内容运营 / 品牌",
+ dn:"审核、投放、客服、数据分析",
+ s:[8,9], l:[9],
+ tl:["Midjourney","Stable Diffusion","即梦 / 剪映","数字人平台","Coze"],
+ m:"内容产量、爆款率、违规率、单条成本、转化率",
+ p:"内容运营 → AIGC 运营 → 内容中台负责人"},
+
+/* ---- AI 新岗：项目与管理 ---- */
+{id:"M-05",f:"M",n:"AI 解决方案架构师",t:"把客户的业务问题翻译成一套能落地的模型 + 工程 + 成本方案。",
+ d:["做客户需求诊断与场景可行性评估","出方案：模型选型、链路设计、数据准备与成本测算","支持售前与交付，处理落地卡点","沉淀行业方案、案例与报价模型"],
+ o:["解决方案与架构图","可行性评估与报价模型","交付实施计划","行业案例库"],
+ k:["方案设计","模型与工程常识","客户沟通","成本与交付管理","行业理解"],
+ u:"客户 / 销售 / 产品与算法团队",
+ dn:"交付团队、AI 应用开发、客户成功",
+ s:[1,2,5,8], l:[],
+ tl:["方案模板","模型评测工具","云平台","成本测算表"],
+ m:"方案中标率、交付按期率、客户采纳率、项目毛利",
+ p:"工程师 / 产品 → 解决方案架构师 → 交付负责人"},
+
+/* ---- AI 族：大模型 ---- */
+{id:"I-01",f:"I",n:"大模型训练 / 微调工程师",t:"让基座模型学会你的领域知识，并把效果、显存和成本一起压下来。",
+ d:["构造、清洗与配比训练数据，做样本工程","跑 SFT / LoRA / DPO / 蒸馏，做多轮实验","做训练评测与效果回归，定位退化原因","控 GPU 成本、显存与训练稳定性"],
+ o:["微调模型与权重","训练数据配方","评测对比报告","成本与显存预算"],
+ k:["深度学习","分布式训练","数据工程","评测方法","显存与性能调优"],
+ u:"AI 产品经理 / 数据训练师 / 业务专家",
+ dn:"AI 应用开发、推理优化、评测",
+ s:[5,6], l:[5],
+ tl:["PyTorch","DeepSpeed","Megatron-LM","LLaMA-Factory","W&B"],
+ m:"评测分数、训练成本、推理显存、效果回归幅度",
+ p:"算法工程师 → 大模型训练工程师 → 模型负责人"},
+
+{id:"I-02",f:"I",n:"RAG / 知识库工程师",t:"把散落的文档变成模型能准确回答的知识底座。",
+ d:["做文档解析、清洗、切分与元数据标注","建向量库与混合检索、重排、过滤","治理召回质量、知识更新与冲突","处理权限、多租户与增量索引"],
+ o:["知识库与索引结构","检索评估集","召回优化报告","知识更新机制"],
+ k:["检索原理","文档解析","向量库","评测与调优","权限设计"],
+ u:"AI 产品 / 业务专家 / 数据团队",
+ dn:"AI 应用开发、评测、运营",
+ s:[5,6,9], l:[5],
+ tl:["Milvus / pgvector","Elasticsearch","Unstructured","LlamaIndex","Ragas"],
+ m:"召回命中率、答案准确率、索引新鲜度、检索延迟",
+ p:"后端 / 算法 → RAG 工程师 → 知识中台负责人"},
+
+{id:"I-03",f:"I",n:"Agent / 智能体工程师",t:"让模型自己规划、调工具、跑多步任务，还要能停下来。",
+ d:["设计规划—执行—反思循环与工具集","做多智能体协作与任务编排、状态持久化","处理工具失败、超时、死循环与越权","做全链路可观测与人工接管"],
+ o:["Agent 编排与工具协议","任务执行轨迹","人工接管机制","失败率与成本报告"],
+ k:["工具调用","工作流编排","可观测性","边界与安全","业务抽象"],
+ u:"AI 产品 / 业务方 / 平台团队",
+ dn:"AI 应用开发、测试、SRE",
+ s:[5,6,8], l:[6],
+ tl:["LangGraph","AutoGen","MCP","Dify","LangSmith"],
+ m:"任务成功率、平均步数、幻觉率、单任务成本、接管率",
+ p:"AI 应用开发 → Agent 工程师 → 智能体平台负责人"},
+
+{id:"I-04",f:"I",n:"AI 评测工程师",t:"给模型和 AI 功能建可复现的度量，做上线前最后一道门。",
+ d:["建评测集与标注规范，做版本回归","跑自动评测、LLM-as-Judge 与一致性校验","做红队、对抗与边界测试","出评测报告与准入结论"],
+ o:["评测集与标注规范","评测报告与分数基线","红队用例","上线准入结论"],
+ k:["评测设计","统计与一致性","标注管理","自动化","业务理解"],
+ u:"AI 产品 / 算法 / 数据训练师",
+ dn:"AI 应用开发、产品、合规",
+ s:[6,7], l:[7],
+ tl:["评测平台","LangSmith","Ragas","标注平台","Jupyter"],
+ m:"评测覆盖率、分数稳定性、线上事故拦截数、误判率",
+ p:"测试 / 算法 → AI 评测工程师 → 质量负责人"},
+
+{id:"I-05",f:"I",n:"AI Infra / 推理优化工程师",t:"把模型塞进 GPU 跑得又快又便宜，还要扛住并发。",
+ d:["做推理服务部署、批处理调度与多模型路由","做量化、KV Cache、连续批处理与算子优化","管 GPU 集群、显存水位与故障恢复","压测、容量规划与成本核算"],
+ o:["推理服务与部署方案","性能压测报告","成本与显存模型","容量规划"],
+ k:["CUDA 与算子常识","推理框架","容器与调度","性能分析","成本意识"],
+ u:"算法 / AI 应用开发 / SRE",
+ dn:"全公司 AI 业务、SRE、财务",
+ s:[6,8], l:[],
+ tl:["vLLM","TensorRT-LLM","SGLang","Triton","NVIDIA Nsight","Kubernetes"],
+ m:"P95 延迟、吞吐、单卡并发、每千 token 成本、GPU 利用率",
+ p:"后端 / SRE → AI Infra → 算力平台负责人"},
+
+{id:"I-06",f:"I",n:"语音与多模态算法工程师",t:"让模型听得懂、看得见、说得出，把非文本模态接进产品。",
+ d:["做 ASR / TTS / 声纹 / 降噪与实时语音","做 CV、OCR、视频理解与生成","做多模态对齐、融合与跨模态检索","做端侧部署与延迟、功耗优化"],
+ o:["语音与多模态模型","标注数据与训练方案","端侧部署包","效果评测报告"],
+ k:["信号处理","多模态建模","端侧部署","数据标注","工程化"],
+ u:"AI 产品 / 业务场景 / 数据团队",
+ dn:"客户端、AI 应用开发、评测",
+ s:[5,6,9], l:[],
+ tl:["Whisper","FunASR","CosyVoice","OpenCV","ONNX / TensorRT","FFmpeg"],
+ m:"字错率 WER、MOS 评分、端到端延迟、端侧包体积",
+ p:"算法工程师 → 多模态算法 → 语音 / 视觉方向负责人"},
+
+{id:"I-07",f:"I",n:"AI 数据训练师 / 标注运营",t:"把业务经验变成高质量样本，模型效果的 upper bound 由这里决定。",
+ d:["写标注规范、质检规则与难例定义","组织标注团队与外包，控质量、产能与成本","做样本清洗、配比与难例挖掘","维护知识库、语料库与标注资产"],
+ o:["标注规范与质检报告","高质量样本集","难例与 badcase 库","产能与成本报表"],
+ k:["业务理解","标注与质检","样本分析","团队管理","数据敏感度"],
+ u:"AI 产品 / 算法 / 业务专家",
+ dn:"大模型训练、RAG、评测",
+ s:[1,2,6], l:[],
+ tl:["标注平台","质检抽样工具","Excel / SQL","知识库系统"],
+ m:"标注准确率、一致性 Kappa、产能、返工率、样本覆盖率",
+ p:"标注员 → 数据训练师 → 数据运营负责人"},
+
+{id:"I-08",f:"I",n:"MLOps / 模型运维工程师",t:"让模型从训练到上线到回滚都有流水线，而不是手工拷文件。",
+ d:["建训练—评测—发布流水线，做环境与依赖隔离","做模型版本、灰度、回滚与多模型并行","做线上效果监控、数据漂移与告警","管特征、推理资源与配额"],
+ o:["模型流水线","版本与灰度机制","监控看板","回滚预案"],
+ k:["CI/CD","容器与调度","监控告警","模型版本管理","成本核算"],
+ u:"算法 / AI Infra / 评测",
+ dn:"AI 应用开发、SRE、业务方",
+ s:[6,7,8], l:[],
+ tl:["MLflow","Kubeflow","Argo Workflows","Prometheus","Feast"],
+ m:"发布成功率、回滚时长、漂移告警数、模型上线周期",
+ p:"运维 / 后端 → MLOps → AI 平台负责人"},
+{id:"A-05",f:"A",n:"AI 搜索与推荐算法工程师",t:"决定用户下一个看到什么：把候选从百万级滤到一屏，且点得动。",
+ d:["做召回：多路召回、向量检索、语义召回","做排序：粗排、精排、重排与多目标融合","做特征工程与实时特征、样本构造","做冷启动、探索利用与线上实验"],
+ o:["召回与排序模型","特征与样本方案","在线实验结论","效果与多样性报告"],
+ k:["机器学习","特征工程","向量检索","实验设计","业务理解"],
+ u:"AI 产品 / 运营 / 数据分析师",
+ dn:"AI 应用开发、后端、数据分析",
+ s:[5,6,9], l:[],
+ tl:["Faiss / HNSW","Spark","PyTorch","特征平台","AB 实验平台"],
+ m:"CTR / CVR、GAUC、NDCG、人均时长、多样性、冷启覆盖率",
+ p:"算法工程师 → 推荐 / 搜索算法 → 算法负责人"}
+];
+
+/* ===== 交付物链路 ===== */
+const CHAIN = [
+  {n:"市场与竞品洞察报告",o:"用户研究员 · 产品负责人",t:"交给产品经理，作为立项依据"},
+  {n:"产品路线图与版本目标",o:"产品负责人 · 产品总监",t:"交给产品经理与项目经理，切版本"},
+  {n:"PRD 与需求优先级表",o:"产品经理",t:"交给交互、研发、测试，进入评审"},
+  {n:"交互原型与状态说明",o:"交互设计师",t:"交给 UI 与研发，作为实现依据"},
+  {n:"视觉稿与设计系统标注",o:"UI 设计师 · 设计系统负责人",t:"交给前端与客户端，进入开发"},
+  {n:"技术方案与接口契约（ADR）",o:"架构师 · 后端",t:"交给前端 / 客户端 / 测试，锁定契约"},
+  {n:"代码合并请求与自测记录",o:"各端工程师",t:"交给架构师评审、测试接手"},
+  {n:"测试报告与缺陷清单",o:"测试工程师 · 测试开发",t:"交给研发修复、项目经理判风险"},
+  {n:"上线单与灰度 / 回滚方案",o:"SRE · 项目经理",t:"交给全体，进入发布窗口"},
+  {n:"监控看板与告警规则",o:"SRE · 后端工程师",t:"交给值班与全体研发，持续观测"},
+  {n:"数据看板与迭代复盘报告",o:"数据分析师 · 项目经理",t:"交给产品与管理层，决定下一版"}
+];
+
+/* ===== 岗位扩展档案：工作内容 / JD 词库 / 潜规则 ===== */
+const EXTRA = {};
+
+EXTRA["P-01"]={
+ wk:["日常：看数据看板、回用户与客服反馈、回答研发的细节追问、改需求文档",
+     "版本内：需求评审、拆任务、跟进度、验收上线、写发布说明与培训材料",
+     "长期：攒需求池、跟踪竞品、复盘指标、定下一版目标与优先级"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["需求分析","用户故事 User Story","PRD 撰写","验收标准 AC","需求优先级排序","竞品分析","用户调研","业务流程梳理","原型草图","需求评审","版本规划","异常态定义","数据口径设计","埋点方案"]},
+  {g:"工具与生态",t:["Axure","Figma","Xmind","飞书文档","Jira","Confluence","神策","GrowingIO","友盟","Excel 数据透视","腾讯问卷","竞品监测","项目管理工具"]},
+  {g:"加分项 · 专家级",t:["商业模式画布","定价与商业化","增长模型 AARRR","AB 实验设计","SQL 查询","用户分层 RFM","国际化与本地化","PMP 项目管理","合同与合规常识","AI 产品设计","大模型能力边界判断"]},
+  {g:"度量与指标",t:["DAU / MAU","次留 / 7 留 / 30 留","转化率","漏斗转化","GMV","ARPU","LTV","CAC","复购率","NPS","需求交付率","需求变更率","版本按期率","渗透率"]},
+  {g:"黑话与行话",t:["需求池","伪需求","需求冻结","打通","闭环","赋能","抓手","对齐 / 拉齐","颗粒度","兜底","心智","链路","打法","沉淀","体感","快速验证","最小可用 MVP","埋点漂移","数据打架","口径对齐"]},
+  {g:"AI 协同",t:["AI 生成 PRD", "大模型辅助需求拆解", "AI 竞品分析", "提示词评审", "AI 功能成本估算", "模型能力边界"]}
+ ],
+ rp:["需求文档写得越细，开发问你的问题越少；写得越含糊返工越多，但很少有人因为写得含糊被追责。",
+     "「这个需求很简单」是行业里最危险的五个字，说出口的人通常不写代码。",
+     "老板的一句话能顶十个用户访谈，你的活儿是把老板的话翻译成用户的话，而不是反过来。",
+     "指标掉了先查埋点和口径，再查产品；八成的「产品问题」最后是数据问题。"]
+};
+
+EXTRA["P-02"]={
+ wk:["日常：看核心指标与异常、拍板取舍、和业务方与老板对齐资源",
+     "周期：定路线图、主持立项与版本评审、把目标拆到各团队",
+     "长期：搭产品梯队、定方法论、判断赛道与竞争格局"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["产品战略","路线图 Roadmap","目标拆解","商业模式设计","赛道与竞品分析","资源规划","立项评审","结项复盘","指标体系设计","OKR 制定","版本节奏管理","跨部门协同"]},
+  {g:"工具与生态",t:["OKR 系统","数据看板","竞品情报库","财务模型","商业计划书 BP","行业研报","用户调研结论","战略解码会"]},
+  {g:"加分项 · 专家级",t:["投融资常识","盈亏平衡测算","用户增长体系","组织与职级设计","跨文化管理","行业人脉","定价策略","平台化与生态合作","AI 战略落地"]},
+  {g:"度量与指标",t:["营收","GMV","付费率","市占率","北极星指标","人效","路线图兑现率","预算达成率","用户规模增速"]},
+  {g:"黑话与行话",t:["顶层设计","一盘棋","组合拳","资源倾斜","战略定力","赛道卡位","第二曲线","水位","试点转正","打法","对齐预期","拍板","复盘归因","向上管理"]},
+  {g:"AI 协同",t:["AI 战略落地", "模型选型决策", "AI 投入产出", "AI 产品路线图", "算力预算"]}
+ ],
+ rp:["路线图是给别人看的，真正决定做什么的是当月资源和老板的注意力。",
+     "总监的核心工作不是想产品，是替团队挡需求——挡得住的人才有威信。",
+     "承诺三个季度之后的功能，基本等于承诺一个谎言。",
+     "谁掌握预算谁掌握优先级；产品的话语权来自业务结果，不来自文档质量。"]
+};
+
+EXTRA["P-03"]={
+ wk:["日常：约访用户、写访谈提纲、整理录音与洞察卡片",
+     "项目内：定研究命题、做可用性测试、出报告、跟产品对齐结论",
+     "长期：维护用户样本库、沉淀研究资产、追踪人群与行业变化"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["深度访谈 IDI","焦点小组 FGD","问卷设计","抽样方法","可用性测试","情境访谈","卡片分类","日志分析","竞品体验走查","定性分析","定量分析","研究报告撰写","访谈提纲"]},
+  {g:"工具与生态",t:["问卷星","Qualtrics","Dovetail","UserTesting","录音转写","录屏工具","眼动仪","用户样本库","SPSS / R","NPS 调研工具"]},
+  {g:"加分项 · 专家级",t:["统计基础（显著性 / 置信区间）","行为经济学","无障碍研究","跨文化研究","神经科学方法","眼动与微表情","可用性实验室搭建","AI 辅助洞察"]},
+  {g:"度量与指标",t:["样本量","信度","效度","洞察采纳率","任务完成率","可用性问题数","NPS","流失原因分布"]},
+  {g:"黑话与行话",t:["真需求 / 伪需求","用户说的和用户做的","共性","聚类","代表性样本","幸存者偏差","场景","痛点","心智模型","用户旅程","洞察","需求机会点","实地走访"]},
+  {g:"AI 协同",t:["AI 辅助洞察", "生成式访谈模拟", "AI 文本聚类", "大模型用户模拟"]}
+ ],
+ rp:["研究报告没人看，是因为结论不够狠；研究员的价值在于敢说「这个需求是伪需求」。",
+     "老板要的从来不是报告，是一句能复用的判断。",
+     "样本 8 个人就敢下结论是行业常态，关键是要说清这 8 个人代表谁。",
+     "研究做得再好，产品不采纳也等于零，所以先找到愿意听的人。"]
+};
+
+EXTRA["P-04"]={
+ wk:["日常：看功能数据、答用户问题、写推送与引导文案",
+     "版本内：做上线推广方案、培训客服、准备 FAQ 与素材",
+     "长期：用户分层、生命周期运营、反馈归集与需求回流"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["用户分层","生命周期运营","活动策划","内容策划","文案撰写","社群运营","私域运营","增长实验","用户反馈归集","客服协同","用户访谈"]},
+  {g:"工具与生态",t:["CRM","推送平台","运营后台","埋点看板","内容管理 CMS","企业微信","优惠券系统","自动化营销","客服工单系统"]},
+  {g:"加分项 · 专家级",t:["会员与权益体系","RFM 建模","文案 A/B 测试","短视频与直播运营","用户心理","活动风控","数据分析（SQL）"]},
+  {g:"度量与指标",t:["功能渗透率","使用深度","留存","活跃","召回率","打开率","退订率","转化率","NPS","反馈闭环时长"]},
+  {g:"黑话与行话",t:["抓手","组合拳","冷启动","种子用户","种草","裂变","声量","转化链路","兜底话术","灰度名单","打扰度","促活","召回","沉淀用户"]},
+  {g:"AI 协同",t:["AI 客服", "智能触达", "AIGC 素材", "数字人", "模型化分层"]}
+ ],
+ rp:["功能上线不是终点，是运营工作的起点；没有推广的功能等于没做。",
+     "推送是最容易被滥用的资源，退订率一旦上去就回不来了。",
+     "用户反馈里八成是噪音，但那两成往往决定下一版做什么。",
+     "运营要短期数据、产品要长期体验，谈不拢就各写各的周报——先把指标归属谈清楚。"]
+};
+
+EXTRA["D-01"]={
+ wk:["日常：画流程、改原型、和产品与研发确认细节",
+     "版本内：出交互稿、写交互说明、参与评审、跟设计走查",
+     "长期：沉淀组件与交互模式库、拆解竞品、优化核心链路"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["信息架构 IA","任务流程设计","状态机设计","线框图","高保真原型","交互说明文档","异常态设计","空状态设计","加载态设计","可用性评估","竞品交互拆解","栅格与间距系统"]},
+  {g:"设计原则",t:["一致性","可见性","容错与防呆","渐进披露","费茨定律","希克定律","格式塔原则","尼尔森十原则","认知负荷","心智模型","反馈及时性"]},
+  {g:"工具与生态",t:["Figma","Axure","Sketch","Principle","ProtoPie","流程图工具","蓝湖","Zeplin","设计走查清单"]},
+  {g:"加分项 · 专家级",t:["动效设计","前端实现常识","无障碍 a11y","数据驱动体验优化","设计系统搭建","用户研究方法","A/B 实验设计","多端一致性"]},
+  {g:"度量与指标",t:["任务完成率","操作步数","点击热区","转化漏斗","交互返工次数","SUS 可用性评分","页面停留时长"]},
+  {g:"黑话与行话",t:["交互稿","走查","还原度","链路","断点","兜底","防误触","主流程","异常分支","拉齐预期","降级方案","体验一致性"]},
+  {g:"AI 协同",t:["对话式 UI", "生成式 UI", "幻觉兜底设计", "可控与可撤销", "AI 交互范式"]}
+ ],
+ rp:["交互稿画得越漂亮，评审越容易跳过逻辑问题——别用视觉盖住坑。",
+     "开发只会实现你画出来的状态，你没画的异常态上线就会炸。",
+     "「和竞品一样」是最省事也最没价值的方案，竞品的用户不是你的用户。",
+     "走查时最该争的是主流程，不是 2px 的间距。"]
+};
+
+EXTRA["D-02"]={
+ wk:["日常：出图、改细节、做图标与插画",
+     "版本内：跟设计系统、出切图标注、做走查、修还原度问题",
+     "长期：维护组件库与规范、做视觉升级、跟品牌统一"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["版式设计","色彩体系","字体层级","图标设计","插画","组件化设计","设计规范","切图与标注","多端适配","响应式布局","暗黑模式","动效制作"]},
+  {g:"工具与生态",t:["Figma","Sketch","Photoshop","Illustrator","After Effects","Lottie","蓝湖","Zeplin","Storybook","C4D"]},
+  {g:"加分项 · 专家级",t:["品牌 VI 设计","Design Token","3D 视觉","手绘能力","动效交互","无障碍对比度","多语言版式","设计系统 Token 化"]},
+  {g:"度量与指标",t:["还原度评分","组件复用率","一致性缺陷数","走查问题数","设计交付周期","素材产出效率"]},
+  {g:"黑话与行话",t:["还原度","走查","视觉锤","品牌资产","呼吸感","留白","氛围图","切图三件套","@2x / @3x","安全区","底部 Home 条","视觉层级","改稿版本 v1 / v2 / final"]},
+  {g:"AI 协同",t:["AIGC 出图", "Midjourney", "Stable Diffusion", "AI 素材质检", "品牌一致性"]}
+ ],
+ rp:["还原度打分是政治问题不是技术问题——先定标准再谈对错。",
+     "设计系统推不动，通常是因为没有一个明确的人对「一致性」负责。",
+     "好看的方案在评审里赢，能落地的方案在项目里赢，两个都得会。",
+     "素材版权是雷，商用图库那几百块别省。"]
+};
+
+EXTRA["D-03"]={
+ wk:["日常：审组件提案、答疑规范、处理冲突 case",
+     "周期：发规范版本、做宣讲、和研发对 Token 映射",
+     "长期：建治理机制、统一多产品线、量化一致性"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["Design Token","语义化命名","原子设计","组件 API 设计","变体 Variants","主题与多品牌","规范治理","版本与迁移","破坏性变更管理"]},
+  {g:"工具与生态",t:["Figma Variables","Storybook","Chromatic","Token 流水线","代码组件库","视觉回归测试","设计度量看板"]},
+  {g:"加分项 · 专家级",t:["前端工程能力","像素比对自动化","设计度量体系","组织推动与培训","多端适配治理","组件成本核算"]},
+  {g:"度量与指标",t:["组件覆盖率","复用率","规范采用率","一致性缺陷数","设计交付周期","迁移完成率"]},
+  {g:"黑话与行话",t:["单一事实源","双轨并行","落地率","影子组件","设计债","破坏性变更","组件下沉","设计资产","规范倒挂"]},
+  {g:"AI 协同",t:["AI 设计助手", "组件自动生成", "Token 自动化", "AI 代码生成对接"]}
+ ],
+ rp:["设计系统不是画出来的，是治理出来的；没有评审权就没有系统。",
+     "规范没人用，八成是因为接入成本高于收益。",
+     "组件越多不等于系统越强，能删才是本事。",
+     "设计系统和研发组件库必须同源，两边各维护一套必然分叉。"]
+};
+
+EXTRA["E-01"]={
+ wk:["日常：写页面与组件、改样式、调接口、修线上问题",
+     "版本内：技术方案评审、开发、联调、自测、改 Bug、上线",
+     "长期：维护组件库、做性能治理、升级技术栈、写工程工具"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["HTML5","CSS3","JavaScript","TypeScript","ES6+","DOM 与事件模型","异步与 Promise","模块化","组件化","响应式布局","浏览器渲染原理","HTTP 与缓存","跨域 CORS"]},
+  {g:"框架与生态",t:["React","Vue","Next.js","Nuxt","Angular","Vite","Webpack","Rollup","pnpm","Node.js","Redux / Pinia / Zustand","React Router","Hooks","SSR / CSR / SSG","微前端 qiankun","Module Federation","Taro / uni-app","React Native","Flutter"]},
+  {g:"工程与质量",t:["ESLint","Prettier","单元测试 Jest","E2E Cypress / Playwright","Sentry 错误监控","埋点 SDK","Feature Flag 灰度开关","CI/CD","代码评审","Source Map","Git 工作流"]},
+  {g:"性能与体验",t:["首屏优化","懒加载","代码分割","图片压缩 WebP","CDN","预渲染","虚拟列表","防抖节流","内存泄漏","弱网优化","LCP / FCP / TTI / CLS","骨架屏"]},
+  {g:"安全与合规",t:["XSS","CSRF","CSP","HTTPS","SameSite","内容安全审核","隐私合规","权限控制","加密与脱敏"]},
+  {g:"黑话与行话",t:["联调","接口对齐","提测","冒烟","灰度","兜底","降级","白屏","卡顿","端上兜底","自测通过","兼容性","埋点漂移","上车","优化一轮"]},
+  {g:"AI 协同",t:["Cursor / Copilot", "Claude Code", "MCP", "AI 代码评审", "Vibe Coding", "AI 生成组件", "SSE 流式输出"]}
+ ],
+ rp:["前端是最容易被「顺手加个需求」的岗位，学会评估工时比写代码重要。",
+     "性能优化不做前后数据对比就等于没做，讲不出提升多少等于没优化。",
+     "兼容性问题永远出在你没测的那个浏览器版本或那个机型上。",
+     "接口文档很少是准的，联调当天以实际返回为准。"]
+};
+
+EXTRA["E-02"]={
+ wk:["日常：写界面与逻辑、改 Bug、适配机型、查线上崩溃",
+     "版本内：技术方案评审、开发、联调、自测、提测、跟灰度与发版",
+     "长期：包体积与启动优化、崩溃治理、技术栈升级、组件化与工程化建设"],
+ tx:[
+  {g:"语言与基础",t:["Java","Kotlin","Swift","Objective-C","Dart","C / C++","NDK","JNI","CMake","ABI 适配","so 库","内存管理","多线程","协程 Coroutines","Handler / Looper","序列化"]},
+  {g:"架构与框架",t:["MVVM","MVI","MVP","Clean Architecture","组件化","模块化","ARouter","Hilt / Dagger","Koin","Jetpack ViewModel","LiveData","Room","DataStore","Navigation","WorkManager","Jetpack Compose","SwiftUI","UIKit","Retrofit","OkHttp","RxJava","Flow","Glide / Coil","Gson / Moshi","Protobuf"]},
+  {g:"工程化与构建",t:["Gradle","AGP","Build Variant","Flavor 多渠道打包","混淆 ProGuard / R8","签名与证书","资源瘦身","包体积优化","二进制裁剪","APK / AAB / IPA","增量更新","热修复 Tinker","插件化 Shadow / RePlugin","动态化","混合开发 Hybrid","JSBridge","WebView 优化","离线包","代码扫描","单元测试"]},
+  {g:"性能与稳定性",t:["启动优化","冷启动","首帧耗时","卡顿监控","FPS","ANR","内存泄漏 LeakCanary","OOM","崩溃率","耗电与流量","Systrace / Perfetto","基线代码","线上问题排查","兼容性测试"]},
+  {g:"平台与生态",t:["APNs","FCM","厂商推送（华为 / 小米 / OPPO / vivo）","保活","强推","自启动","地图 SDK（高德 / 百度 / Google Maps）","定位服务","支付 SDK（微信 / 支付宝 / IAP）","分享 SDK","广告 SDK","深链 Deeplink","Universal Link","权限适配","分区存储","剪贴板","折叠屏适配","暗黑模式","刘海屏与安全区","应用市场审核","隐私合规（权限清单 / 个保法）"]},
+  {g:"度量与指标",t:["崩溃率","ANR 率","冷启动时长","首帧耗时","卡顿率","内存峰值","包体积","启动失败率","灰度覆盖率","渠道包转化","留存"]},
+  {g:"黑话与行话",t:["双端一致","端能力","端上兜底","打点 / 埋点对齐","灰度放量","全量","回滚","上车","需求闭环","端技术债","提测","冒烟","复现不了","机型白名单","兼容性兜底","白牌","预装","宿主机"]},
+  {g:"AI 协同",t:["端侧模型", "端智能", "模型量化部署", "AI 语音助手", "AI 相机 / 图像", "端云协同", "智能体入口"]}
+ ],
+ rp:["包体积是老板和渠道的体感指标，涨 5MB 会被问，但需求评审时没人替你拦。",
+     "崩溃率不是 KPI 是事故线：一万个用户里挂一个没人管，集中爆在某个机型才有人找你。",
+     "上线前 24 小时的所有「小改动」都是事故隐患，能不加就不加。",
+     "灰度不是流程，是保命的：1% → 10% → 全量，别在周五下午全量。",
+     "用户记不住版本号，只记得「上次更新完就卡了」——性能问题最终都会算到这一版头上。"]
+};
+
+EXTRA["E-03"]={
+ wk:["日常：写服务、改接口、查线上告警、翻日志",
+     "版本内：技术方案评审、开发、联调、压测、上线、值班",
+     "长期：重构、治理慢查询与容量、沉淀中间件与接口规范"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["Java / Go / Python / C++","Spring Boot","Spring Cloud","RESTful","gRPC","Protobuf","MySQL","PostgreSQL","Redis","Kafka","RocketMQ","RabbitMQ","Elasticsearch","MongoDB","Nginx","SQL 优化"]},
+  {g:"架构与模式",t:["微服务","DDD 领域驱动","分层架构","CQRS","事件驱动","幂等设计","分布式事务（TCC / Saga）","分布式锁","分库分表","读写分离","缓存穿透 / 击穿 / 雪崩","限流熔断降级","最终一致","消息补偿","定时任务与跑批","双写"]},
+  {g:"工程与运维",t:["CI/CD","Docker","Kubernetes","灰度发布","蓝绿部署","金丝雀","链路追踪 TraceID","日志规范","监控告警","压测","容量评估","SLA / SLO","代码评审","单元测试","接口文档"]},
+  {g:"数据与安全",t:["索引优化","执行计划","慢查询","大事务","死锁","加密与脱敏","JWT / OAuth2","防重放","SQL 注入","越权控制","审计日志"]},
+  {g:"黑话与行话",t:["接口契约","联调","提测","上线窗口","回滚","兜底","限流","水位","雪崩","脏数据","数据订正","跑批","幂等","最终一致","灰度","机审","拉群对齐","线上事故"]},
+  {g:"AI 协同",t:["AI 网关", "模型服务编排", "SSE 流式接口", "Token 计费", "向量数据库", "异步任务队列"]}
+ ],
+ rp:["接口文档改动要同步所有人，但通常没人同步，所以联调当天才发现字段名对不上。",
+     "所有「只改一行」的线上变更都可能引发事故，评估影响面比手速重要。",
+     "数据库是最后一道防线，能不动表结构就别动。",
+     "线上问题先看监控再看日志，最后才怀疑代码——八成是流量或依赖出了问题。"]
+};
+
+EXTRA["E-04"]={
+ wk:["日常：评审方案、答疑技术选型、看容量与稳定性数据",
+     "项目内：出架构方案、定接口契约、控关键路径、做风险兜底",
+     "长期：技术演进路线、治理技术债、建规范与 ADR 库"],
+ tx:[
+  {g:"架构能力",t:["架构设计","技术选型","领域建模","限界上下文","分层与模块化","微服务 vs 单体","事件驱动","单元化","异地多活","容量规划","弹性伸缩","契约优先","API 网关"]},
+  {g:"稳定性设计",t:["单点识别","雪崩防护","限流与熔断","隔离","降级方案","故障演练","混沌工程","SLO / 错误预算","MTTR","RTO / RPO","爆炸半径","依赖治理","链路压测"]},
+  {g:"决策与文档",t:["ADR 架构决策记录","选型对比","技术债管理","演进路线","服务治理","架构评审","容量水位","成本评估"]},
+  {g:"加分项 · 专家级",t:["中间件原理","数据库内核常识","网络安全","多活机房建设","端侧架构","AI 推理架构","研发效能体系"]},
+  {g:"黑话与行话",t:["高内聚低耦合","边界","抽象","可扩展性","向后兼容","破坏性变更","解耦","下沉","平台化","双活","容灾","压测水位","重构窗口","先上线再说"]},
+  {g:"AI 协同",t:["AI 推理架构", "GPU 资源规划", "模型路由", "端云协同架构", "AI 安全边界"]}
+ ],
+ rp:["架构评审最大的作用是让方案被更多人知道，不是找出最优解。",
+     "过度设计的成本由后来的人承担，所以你要为「三年后没人维护」负责。",
+     "没有 ADR 的架构决策，半年后会被同一个人推翻。",
+     "架构师最该拒绝的是「先上线再说」，因为技术债的利息由整个团队付。"]
+};
+
+EXTRA["E-05"]={
+ wk:["日常：写功能、改后台、修脚本、救线上",
+     "项目内：独立完成一个小模块的前后端，快速验证",
+     "长期：搭内部工具与运营后台、补工程化短板"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["前端框架","TypeScript","Node.js","一门后端语言","Express / NestJS","数据库与 SQL","ORM","REST / gRPC","JWT 鉴权","RBAC 权限模型","Docker","Docker Compose","CI/CD","Nginx 反向代理","云服务器部署","对象存储","定时任务 Cron","日志与告警"]},
+  {g:"加分项 · 专家级",t:["Serverless","低代码平台","全栈监控","基础运维","产品思维","数据建模","爬虫与自动化脚本","Redis 缓存","消息队列","域名与证书","Excel 导入导出","报表与看板","灰度与回滚"]},
+  {g:"黑话与行话",t:["端到端","一把梭","先跑通","最小闭环","内部工具","运营后台","联调","上线","兜底","能跑就行"]},
+  {g:"AI 协同",t:["AI 应用全栈", "模型调用封装", "提示词配置化", "AI 工具链"]}
+ ],
+ rp:["全栈在小团队意味着「什么都归你」，需求来了没人跟你分工。",
+     "先跑通再优化是常态，但跑通的那版代码往往会活三年。",
+     "一个人维护前后端时，最容易死的是监控和备份，不是功能。"]
+};
+
+EXTRA["E-06"]={
+ wk:["日常：看平台告警、答疑接入、处理流水线故障",
+     "周期：版本升级、容量扩容、接入新业务方",
+     "长期：建平台能力、治理重复建设、压降构建与发布成本"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["Linux","TCP / HTTP","Kubernetes","Docker","Istio","Envoy","Nginx","API 网关","RPC 框架","注册中心","配置中心","消息队列","分布式事务"]},
+  {g:"可观测与效能",t:["Metric / Log / Trace","OpenTelemetry","Prometheus","Grafana","CI/CD","制品库","代码扫描","环境编排","灰度平台","混沌工程","容量与成本"]},
+  {g:"加分项 · 专家级",t:["服务网格","Serverless 平台","多集群管理","边缘节点","安全基线","成本优化","开源治理"]},
+  {g:"黑话与行话",t:["平台化","下沉","接入成本","重复建设","治理","水位","域名与证书","多活","机房","打底","灰度平台","基础设施即代码"]},
+  {g:"AI 协同",t:["GPU 集群", "推理服务运维", "向量库运维", "模型仓库", "算力成本"]}
+ ],
+ rp:["平台的价值取决于接入成本，功能再强没人接也是零。",
+     "「统一收口」是基础架构最爱说的话，也是业务方最怕听到的话。",
+     "构建时长每慢一分钟，全公司每年多花几千小时——但没人替你算这笔账。"]
+};
+
+EXTRA["A-01"]={
+ wk:["日常：取数、出日报、回答业务方的问题",
+     "周期：指标口径维护、看板搭建、专题分析与实验评估",
+     "长期：建指标体系、做归因方法论、推数据驱动决策"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["SQL","窗口函数","数据清洗","指标体系设计","漏斗分析","留存分析","同期群 Cohort","RFM 分群","AB 实验设计","显著性检验","归因分析","异常检测","可视化","业务建模"]},
+  {g:"工具与生态",t:["Hive","Presto / Trino","ClickHouse","Python（pandas）","Tableau","Superset","帆软","QuickBI","神策","GrowingIO","Excel","Jupyter","埋点管理平台"]},
+  {g:"加分项 · 专家级",t:["统计推断","因果推断（DID / PSM）","机器学习基础","数据建模","埋点方案设计","实验平台建设","用户增长模型","经营分析"]},
+  {g:"度量与指标",t:["口径","维度","度量","留存","转化率","GMV","ARPU","LTV","CAC","ROI","同比 / 环比","p 值","置信区间","样本量"]},
+  {g:"黑话与行话",t:["口径对齐","数据打架","埋点漂移","拉个宽表","跑个数","看板","日报","拆解","大盘","掉点","涨点","辛普森悖论","相关性不等于因果","这个数不准"]},
+  {g:"AI 协同",t:["自然语言取数 NL2SQL", "AI 报表", "智能归因", "AI 辅助洞察"]}
+ ],
+ rp:["口径不清的分析，做得再漂亮也会被一句「这个数不对」推翻。",
+     "业务方要的往往不是分析，是一个能写进汇报的数字。",
+     "看板做得越多，被追问的机会越少；但没人看的看板会一直活下去。",
+     "先确认对方要的是「解释过去」还是「预测未来」，两者方法完全不同。"]
+};
+
+EXTRA["A-02"]={
+ wk:["日常：修任务、查数据质量告警、响应取数需求",
+     "周期：建模型、加表、做链路优化、支撑新业务接入",
+     "长期：数仓分层治理、指标口径统一、成本与时效优化"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["维度建模","星型模型","雪花模型","事实表与维度表","拉链表","缓慢变化维 SCD","数仓分层 ODS / DWD / DWS / ADS","宽表","指标字典","数据血缘","数据质量校验","调度依赖"]},
+  {g:"工具与生态",t:["Hive","Spark","Flink","Airflow","DolphinScheduler","ClickHouse","Doris","Iceberg / Hudi","DataX","Kafka","元数据平台","数据地图"]},
+  {g:"加分项 · 专家级",t:["实时数仓","数据湖 / Lakehouse","数据治理","成本优化","数据安全分级","指标体系平台","流批一体","数据倾斜调优"]},
+  {g:"度量与指标",t:["数据准时率","任务失败率","质量告警数","血缘覆盖率","查询成本","核心表 SLA","存储成本"]},
+  {g:"黑话与行话",t:["跑批","重跑","补数","回刷","数据倾斜","小文件","脏数据","上游改表","打宽","落表","T+1","实时链路","口径","表血缘","数据资产"]},
+  {g:"AI 协同",t:["向量数据入仓", "Embedding 管道", "多模态数据", "AI 数据质量"]}
+ ],
+ rp:["上游改一个字段名，下游能炸一片——血缘图不是文档，是保命图。",
+     "数据准时率是数仓唯一的硬指标，晚一小时等于当天没数。",
+     "补数脚本一定要留，业务方永远会在月底问你「能不能重跑一遍」。",
+     "宽表越宽越好用，也越难维护，最后没人知道某个字段是谁的口径。"]
+};
+
+EXTRA["A-03"]={
+ wk:["日常：跑实验、看指标、调特征与模型",
+     "周期：定问题与评估口径、离线评估、上线实验、扩量",
+     "长期：链路优化、效果衰减治理、模型迭代与成本控制"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["机器学习","深度学习","特征工程","样本构造","正负样本","特征交叉","Embedding","召回","粗排","精排","重排","多目标优化","序列建模","冷启动"]},
+  {g:"工具与生态",t:["PyTorch","TensorFlow","Spark","XGBoost","LightGBM","Faiss","ONNX","TensorFlow Serving","Triton","特征平台","AB 实验平台","Jupyter","模型仓库"]},
+  {g:"加分项 · 专家级",t:["Transformer","BERT / LLM","向量检索","图算法","强化学习","蒸馏 / 量化 / 剪枝","模型可解释性","多模态","因果推断"]},
+  {g:"度量与指标",t:["AUC","GAUC","NDCG","Recall@K","CTR / CVR","线上增益","推理时延","效果衰减","覆盖率","多样性","新颖性"]},
+  {g:"黑话与行话",t:["跑实验","离线评估","线上 AB","涨点","掉点","刷指标","特征穿越","样本泄漏","兜底策略","上策略","扩量","全量","离线在线不一致","模型回滚"]},
+  {g:"AI 协同",t:["LLM 微调", "RLHF", "多模态算法", "大模型推理", "AIGC 生成模型", "模型压缩"]}
+ ],
+ rp:["离线涨点线上掉点是常态，先怀疑特征穿越，再怀疑样本。",
+     "算法效果的一半来自特征和样本，但汇报时九成篇幅在讲模型结构。",
+     "线上实验不显著就扩量，是最容易被事后追责的操作。",
+     "模型上线只是开始，效果衰减的曲线才是真正的 KPI。"]
+};
+
+EXTRA["A-04"]={
+ wk:["日常：调提示、跑评测、看线上 badcase、控成本",
+     "周期：搭链路（检索 / 工具 / 兜底）、做评测集、灰度上线",
+     "长期：能力沉淀、成本优化、安全合规、模型路由与切换"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["Prompt 工程","RAG 检索增强","向量检索","Chunk 切分","Rerank","Agent","Tool Calling / Function Calling","评测集设计","幻觉治理","上下文管理","流式输出","结构化输出"]},
+  {g:"工具与生态",t:["OpenAI / Claude / 通义 / 豆包 API","LangChain","LlamaIndex","Milvus","pgvector","FAISS","MCP","Dify","Coze","评测平台","模型网关","向量化模型"]},
+  {g:"加分项 · 专家级",t:["SFT 微调","LoRA","蒸馏","RLHF","多模态","成本优化","内容安全护栏","数据合成","模型路由"]},
+  {g:"度量与指标",t:["任务成功率","幻觉率","P95 时延","token 成本","采纳率","检索命中率","转人工率","拒答率"]},
+  {g:"黑话与行话",t:["提示词","Few-shot","CoT","幻觉","兜底回复","拒答","上下文窗口","温度","评测回归","成本打平","badcase","能力边界","灰测"]}
+ ],
+ rp:["演示能过不代表能上线，评测集才是真正的验收标准。",
+     "幻觉不能消灭，只能兜底——产品必须准备好「答不上来」的那条路径。",
+     "成本会在量起来之后才咬人，上线前就要算清每千次调用的钱。",
+     "模型版本一换，原来调好的提示词全部要重测。"]
+};
+
+EXTRA["Q-01"]={
+ wk:["日常：跑用例、提缺陷、跟修复、验回归",
+     "版本内：用例评审、测试执行、准入准出判断、上线验证",
+     "长期：用例库维护、测试策略优化、质量度量与复盘"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["测试用例设计","等价类","边界值","判定表","场景法","状态迁移","探索式测试","接口测试","兼容性测试","异常测试","弱网测试","缺陷管理","缺陷分级"]},
+  {g:"工具与生态",t:["Jira","禅道","TAPD","Postman","Charles","Fiddler","云真机","JMeter","抓包工具","日志分析","测试管理平台"]},
+  {g:"加分项 · 专家级",t:["自动化基础","SQL","Linux","安全测试","性能测试","灰度验证","精准测试","质量度量体系"]},
+  {g:"度量与指标",t:["用例覆盖率","漏测率","缺陷密度","缺陷修复时长","上线后 P0 数","回归通过率","缺陷拦截阶段"]},
+  {g:"黑话与行话",t:["提测","冒烟","回归","准入准出","阻塞","复现路径","偶现","环境问题","验收","上线拉起","测试报告","用例评审","发散测试"]},
+  {g:"AI 协同",t:["AI 生成用例", "智能探索测试", "大模型输出评测", "幻觉用例"]}
+ ],
+ rp:["测试是最后一道门，但门能不能关，往往取决于项目经理敢不敢说不发。",
+     "「偶现」是缺陷单里最贵的三个字，因为没人愿意为它排期。",
+     "漏测的责任通常算在测试头上，哪怕需求当初就没写清楚。",
+     "用例写得再多，回归跑不完等于没有。"]
+};
+
+EXTRA["Q-02"]={
+ wk:["日常：维护流水线、修挂掉的用例、造数据",
+     "周期：搭自动化、加门禁、做性能与稳定性测试",
+     "长期：测试平台建设、效能度量、环境治理"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["Python / Java","自动化框架设计","接口自动化","UI 自动化","单元测试覆盖率","Mock 与桩","造数","性能测试","稳定性测试","持续集成"]},
+  {g:"工具与生态",t:["Pytest","JUnit","Selenium","Appium","Playwright","JMeter","Locust","Jenkins","GitLab CI","Allure","Mock Server","造数平台","覆盖率工具"]},
+  {g:"加分项 · 专家级",t:["质量门禁设计","混沌测试","精准测试","覆盖率采集","环境治理","测试平台建设","流量回放"]},
+  {g:"度量与指标",t:["自动化覆盖率","回归时长","Flaky 率","门禁拦截率","环境可用性","缺陷拦截阶段","构建成功率"]},
+  {g:"黑话与行话",t:["门禁","流水线","用例维护成本","稳定的用例","环境打架","数据污染","全链路压测","流量回放","一键回归"]},
+  {g:"AI 协同",t:["AI 自动化脚本", "智能体测试", "用例自动生成", "AI 缺陷归因"]}
+ ],
+ rp:["自动化的价值不在覆盖率数字，在于它把回归从两天压到两小时。",
+     "不稳定的用例比没有用例更糟，因为团队会开始忽略红灯。",
+     "测试平台做得再花，业务方只关心「能不能提前发现问题」。"]
+};
+
+EXTRA["O-01"]={
+ wk:["日常：看告警、值班响应、处理发布与扩容",
+     "周期：容量规划、演练、稳定性治理、成本优化",
+     "长期：建 SLO 体系、自动化运维、多活与容灾建设"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["Linux","网络与 DNS","负载均衡","容器与编排","发布系统","容量规划","监控告警","应急预案","故障响应","变更管理"]},
+  {g:"工具与生态",t:["Kubernetes","Prometheus","Grafana","ELK / Loki","Jaeger / SkyWalking","Ansible","Terraform","云控制台","CDN","Nginx","Jenkins"]},
+  {g:"加分项 · 专家级",t:["SLO 体系","混沌工程","成本优化","多活容灾","安全基线","自动化运维","容量建模","Serverless 运维"]},
+  {g:"度量与指标",t:["可用性 SLO","MTTR / MTTD","发布成功率","故障数","告警噪音率","容量水位","资源利用率","错误预算"]},
+  {g:"黑话与行话",t:["值班 on-call","拉起","止血","回滚","灰度","扩容","降级","爆炸半径","复盘","变更窗口","机房","双活","打底","压测","兜底"]},
+  {g:"AI 协同",t:["GPU 调度", "推理服务监控", "模型灰度", "算力水位"]}
+ ],
+ rp:["稳定性做得好没人表扬，出事第一个被点名。",
+     "值班表上写的是名字，实际扛的是「谁手机敢静音」。",
+     "所有「临时开个口子」的配置，最后都会变成没人敢删的历史遗留。",
+     "故障复盘最容易变成批斗会，真正有用的是把「下一次怎么更快发现」写进预案。"]
+};
+
+EXTRA["O-02"]={
+ wk:["日常：看慢查询、审 DDL、处理容量告警",
+     "周期：备份演练、索引优化、主从切换演练",
+     "长期：分库分表规划、数据库选型、数据安全审计"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["库表设计","索引优化","执行计划","慢查询治理","主从复制","高可用","备份与恢复","容灾演练","DDL 变更","数据订正"]},
+  {g:"工具与生态",t:["MySQL","PostgreSQL","Redis","MongoDB","备份工具","慢日志分析","监控平台","数据库中间件","Binlog 解析"]},
+  {g:"加分项 · 专家级",t:["分库分表","分布式数据库","HTAP","数据安全审计","容量建模","内核参数调优","云数据库托管"]},
+  {g:"度量与指标",t:["备份可恢复率","慢查占比","变更事故数","库容量水位","主从延迟","连接池使用率"]},
+  {g:"黑话与行话",t:["锁表","大事务","死锁","全表扫描","索引失效","主从延迟","割接","数据订正","回滚脚本","灰度变更","备份窗口"]},
+  {g:"AI 协同",t:["向量数据库", "Embedding 索引", "AI 数据脱敏"]}
+ ],
+ rp:["备份没验证过恢复，就等于没有备份。",
+     "任何一次 DDL 都可能锁表，所以变更必须排在凌晨和业务低峰。",
+     "开发觉得自己懂索引，出事的时候第一个找的还是 DBA。"]
+};
+
+EXTRA["O-03"]={
+ wk:["日常：审方案、扫漏洞、跟进修复",
+     "周期：渗透测试、权限治理、合规检查",
+     "长期：安全体系、攻防演练、隐私合规落地"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["威胁建模","渗透测试","漏洞扫描","代码审计","安全评审","应急响应","权限与密钥管理","数据脱敏","基线加固"]},
+  {g:"工具与生态",t:["Burp Suite","Nmap","Wireshark","SAST / DAST","WAF","KMS 密钥管理","漏扫平台","蜜罐","SIEM"]},
+  {g:"加分项 · 专家级",t:["逆向工程","二进制安全","云安全","风控算法","隐私合规","等保测评","红蓝对抗","供应链安全"]},
+  {g:"度量与指标",t:["高危漏洞数","修复时长","安全事件数","合规通过率","资产覆盖数","越权接口数"]},
+  {g:"黑话与行话",t:["越权","注入","反序列化","拖库","撞库","白帽子","攻防演练","红线","应急","通报","定级","SDL","最小权限"]},
+  {g:"AI 协同",t:["大模型安全", "提示词注入", "越狱防护", "模型输出审计", "AI 内容安全"]}
+ ],
+ rp:["安全永远是业务的对立面，你要做的是给出可落地的替代方案，而不是只说不行。",
+     "漏洞修复排期永远打架，所以高危要有一票否决的依据。",
+     "合规检查前一周才找安全，基本只能做表面整改。"]
+};
+
+EXTRA["G-01"]={
+ wk:["日常：看活跃与留存、发触达、回用户消息",
+     "周期：分层名单、触达方案、运营实验",
+     "长期：生命周期体系、流失预警、用户资产沉淀"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["用户分层","RFM 模型","生命周期管理","标签体系","私域运营","社群运营","SOP 设计","触达策略","频控管理","召回策略","流失预警","自动化营销"]},
+  {g:"工具与生态",t:["CRM","企微 SCRM","推送平台","短信通道","埋点看板","自动化营销平台","优惠券系统","客服工单"]},
+  {g:"加分项 · 专家级",t:["运营实验设计","用户心理","内容与活动联动","KOC 培养","会员体系","数据分析 SQL","私域转化模型"]},
+  {g:"度量与指标",t:["留存","召回率","触达打开率","退订率","活跃率","转化率","人均使用时长","流失率"]},
+  {g:"黑话与行话",t:["分层","打标","促活","召回","沉默用户","核心用户","打扰度","触达漏斗","SOP","私域池","动作化","自动化"]},
+  {g:"AI 协同",t:["AI 个性化触达", "智能分层", "AI 文案"]}
+ ],
+ rp:["推送是最便宜的触达，也是最容易把用户推走的方式。",
+     "分层做得越细，运营动作越少，因为没人维护得动几十个名单。",
+     "运营的效果最终会被算进产品数据里，功劳归属永远是笔糊涂账。"]
+};
+
+EXTRA["G-02"]={
+ wk:["日常：选题、审稿、配推荐位、看内容数据",
+     "周期：内容排期、专题策划、作者维护与结算",
+     "长期：内容策略、内容池建设、质量与安全管理"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["选题策划","栏目规划","内容矩阵","PGC / UGC / AIGC","内容审核","标签体系","推荐位运营","内容池建设","冷启动","版权与授权"]},
+  {g:"工具与生态",t:["CMS 内容管理","审核平台","数据看板","素材库","版权监测","创作者后台","排版工具"]},
+  {g:"加分项 · 专家级",t:["推荐算法常识","爆款方法论","用户画像","短视频脚本","直播策划","AI 生成内容治理"]},
+  {g:"度量与指标",t:["内容产量","内容质量分","消费时长","完播率","CTR","互动率","违规率","作者留存"]},
+  {g:"黑话与行话",t:["爆款","起量","分发","流量池","冷启","加权","降权","洗稿","搬运","违规词","内容安全","审核红线"]},
+  {g:"AI 协同",t:["AIGC 内容", "AI 内容审核", "智能推荐", "AI 洗稿检测"]}
+ ],
+ rp:["内容运营的核心不是写内容，是决定谁的内容被看见。",
+     "平台的内容质量由推荐规则决定，不由编辑的口味决定。",
+     "违规内容的下架速度，比内容上线速度更考验团队。"]
+};
+
+EXTRA["G-03"]={
+ wk:["日常：盯活动数据、处理客诉、改配置",
+     "周期：活动策划、预算申请、物料与配置、上线监控",
+     "长期：玩法库沉淀、风控体系、活动方法论"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["活动策划","玩法设计","预算与 ROI","奖品与权益","风控与防刷","抽奖概率","转化链路设计","物料统筹","合规审核"]},
+  {g:"工具与生态",t:["活动配置后台","优惠券系统","奖品系统","风控规则引擎","埋点看板","设计协作","短信 / 推送"]},
+  {g:"加分项 · 专家级",t:["用户心理","增长实验","直播与联名","跨部门项目推动","成本核算","防羊毛党策略"]},
+  {g:"度量与指标",t:["活动 ROI","参与率","转化增量","拉新数","超预算率","客诉率","复购率"]},
+  {g:"黑话与行话",t:["玩法","拉新盘","促活盘","转化盘","羊毛党","防刷","叠加规则","兜底预算","活动页","收口","复盘","引爆"]},
+  {g:"AI 协同",t:["AI 活动生成", "智能选品", "AI 客服话术"]}
+ ],
+ rp:["活动预算超支通常不是玩法的问题，是风控没算清概率和人头。",
+     "大促活动的成败，一半取决于研发和运维敢不敢在当天发版。",
+     "活动带来的用户，三个月后还在的比例决定了这场活动到底值不值。"]
+};
+
+EXTRA["G-04"]={
+ wk:["日常：看投放数据、换素材、调出价",
+     "周期：跑实验、做漏斗诊断、申请预算",
+     "长期：增长模型搭建、渠道结构优化、成本下降"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["增长模型 AARRR","增长杠杆识别","裂变设计","拉新与召回","漏斗诊断","实验设计","投放与归因","素材判断","成本核算"]},
+  {g:"工具与生态",t:["巨量引擎","腾讯广告","快手磁力","Google Ads","Meta Ads","归因工具","实验平台","BI","素材工厂"]},
+  {g:"加分项 · 专家级",t:["统计与显著性","LTV 建模","渠道结构优化","私域转化","品牌与效果协同","增长黑客方法论"]},
+  {g:"度量与指标",t:["CAC","LTV","ROI","ROAS","CPA / CPC / CPM / oCPX","转化率","回收周期","实验胜率"]},
+  {g:"黑话与行话",t:["跑量","起量","掉量","回收","放量","素材衰退","归因窗口","自然量与买量","买量成本","打正","毛利打平"]},
+  {g:"AI 协同",t:["AI 素材生成", "智能出价", "AI 人群包", "生成式投放"]}
+ ],
+ rp:["投放的核心不是把量买进来，是把回收周期压到能承受的范围。",
+     "所有渠道都会在放量之后成本上涨，这是结构性的，不是你优化得不够。",
+     "归因模型一换，昨天的「增长」今天就变成「自然波动」。"]
+};
+
+EXTRA["M-01"]={
+ wk:["日常：站会、追阻塞、同步风险、写周报",
+     "版本内：排期、里程碑跟踪、跨团队对齐、发布协调",
+     "长期：流程沉淀、复盘机制、发布日历与资源规划"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["WBS 任务拆解","里程碑管理","关键路径","甘特图","依赖管理","资源排期","风险登记","变更管理","结项复盘","干系人沟通"]},
+  {g:"工具与生态",t:["飞书项目","Jira","禅道","TAPD","甘特图工具","风险登记表","周报模板","发布日历"]},
+  {g:"加分项 · 专家级",t:["敏捷与 Scrum","成本与预算","合同与采购流程","多项目并行管理","数据分析","流程改进"]},
+  {g:"度量与指标",t:["按期交付率","延期天数","风险前置发现率","资源利用率","需求吞吐","变更次数"]},
+  {g:"黑话与行话",t:["排期","卡点","阻塞","拉通","对齐","risk","buffer 缓冲","上线窗口","封版","发版","插需求","需求缩水","里程碑挪期"]},
+  {g:"AI 协同",t:["AI 排期助手", "智能风险预警", "AI 会议纪要"]}
+ ],
+ rp:["项目经理的权力来自信息差，你知道得越早，越能影响结果。",
+     "所有「下周就能上线」的承诺，都要在排期表上加一行风险备注。",
+     "延期从来不是某个人造成的，是所有人都不说真话累积出来的。"]
+};
+
+EXTRA["M-02"]={
+ wk:["日常：主持站会、拆障碍、跟进改进项",
+     "迭代内：组织评审与回顾、看板维护、度量",
+     "长期：团队协作机制、效能改进、教练与辅导"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["Scrum 框架","Kanban 看板","迭代规划","站会","评审会","回顾会","故事点估算","燃尽图","WIP 限制","障碍清除"]},
+  {g:"工具与生态",t:["Jira","看板工具","度量看板","回顾工作坊","协作约定模板"]},
+  {g:"加分项 · 专家级",t:["引导技术","教练技术","组织变革","冲突处理","效能度量体系","精益与价值流"]},
+  {g:"度量与指标",t:["迭代达成率","周期时间","吞吐","速率 Velocity","改进项完成率","缺陷返工率"]},
+  {g:"黑话与行话",t:["迭代","冲刺","故事点","速率","卡住了","障碍","改进项","落地率","伪敏捷","仪式感","复盘会"]},
+  {g:"AI 协同",t:["AI 效能度量", "智能站会纪要", "AI 迭代预测"]}
+ ],
+ rp:["敏捷流程最容易变成仪式：站会开了，问题还是没人管。",
+     "SM 没有管理权限，只能靠影响力和信息透明推动团队。",
+     "度量一旦变成考核，团队就会开始优化数字而不是优化交付。"]
+};
+
+EXTRA["M-03"]={
+ wk:["日常：看进度、review 代码、面试、处理人和事",
+     "周期：目标拆解、绩效与辅导、技术方案把关",
+     "长期：梯队建设、技术规划、组织能力提升"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["团队管理","目标拆解","交付管理","技术评审","绩效管理","招聘与面试","人才培养","跨团队协同"]},
+  {g:"工具与生态",t:["OKR 系统","研发效能看板","绩效系统","ATS 招聘","代码评审平台"]},
+  {g:"加分项 · 专家级",t:["技术架构判断","成本与预算","组织诊断","冲突处理","项目管理","业务理解"]},
+  {g:"度量与指标",t:["交付达成率","线上质量","人效","人才留存","招聘周期","技术债占比"]},
+  {g:"黑话与行话",t:["HC","编制","梯队","盘点","1on1","交付承诺","背指标","人效","技术债","接盘","甩锅","向上管理"]},
+  {g:"AI 协同",t:["AI 团队提效", "AI 代码评审", "人效度量", "AI 面试"]}
+ ],
+ rp:["技术经理最大的风险是「还在写代码」，因为没人替你管人和交付。",
+     "绩效沟通一年一次是不够的，但所有人都只在年底做一次。",
+     "团队能扛住多少次临时需求，取决于平时有没有攒下信任额度。"]
+};
+
+EXTRA["M-04"]={
+ wk:["日常：看经营数据、参与重大决策、对外沟通",
+     "周期：技术规划、预算与组织调整",
+     "长期：技术战略、组织形态、创新能力建设"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["技术战略","架构演进判断","组织设计","预算管理","技术风险识别","跨部门协同","人才结构规划"]},
+  {g:"工具与生态",t:["OKR","成本看板","行业情报","投融资材料","组织架构图"]},
+  {g:"加分项 · 专家级",t:["开源治理","合规与安全","创新孵化","并购与整合","国际化技术体系","AI 战略"]},
+  {g:"度量与指标",t:["技术投入产出","系统稳定性","研发效能","人才结构","创新落地数","成本占比"]},
+  {g:"黑话与行话",t:["技术战略","组织阵型","资源配置","降本增效","技术底座","长期主义","投入产出","all in"]},
+  {g:"AI 协同",t:["AI 战略", "算力预算", "组织 AI 化", "模型治理"]}
+ ],
+ rp:["CTO 的时间一半花在技术判断，一半花在解释为什么这么判断。",
+     "组织调整比技术选型更能决定研发效率。",
+     "「降本增效」最先被砍的往往是基础设施投入，代价会在两年后显现。"]
+};
+
+EXTRA["S-01"]={
+ wk:["日常：安排面试、跟进 offer、处理员工问题",
+     "周期：人才盘点、绩效与激励落地、组织调整",
+     "长期：梯队建设、培训体系、组织诊断"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["岗位画像","JD 撰写","面试与评估","渠道管理","Offer 谈判","背景调查","职级体系","绩效管理","激励设计","人才盘点"]},
+  {g:"工具与生态",t:["ATS 招聘系统","HRIS","绩效系统","薪酬调研","内推平台","培训平台"]},
+  {g:"加分项 · 专家级",t:["组织诊断","劳动法与员工关系","雇主品牌","股权激励","跨区域用工","人才地图"]},
+  {g:"度量与指标",t:["招聘周期","到岗率","留存率","人岗匹配度","离职率","人效","offer 接受率"]},
+  {g:"黑话与行话",t:["HC","编制","画像","盘点","梯队","汰换","优化","离职面谈","内推","试用期","背调","职级评审"]},
+  {g:"AI 协同",t:["AI 面试", "数字人面试", "AI 简历筛选", "人才画像模型"]}
+ ],
+ rp:["业务方永远觉得招人慢，但很少愿意为「画像清晰」花时间。",
+     "「优化」是裁员的委婉说法，沟通方式比流程更重要。",
+     "绩效结果往往在年初就定了，年中的努力只能改变边角。"]
+};
+
+EXTRA["S-02"]={
+ wk:["日常：审合同、答业务咨询、处理投诉",
+     "周期：合规检查、资质与备案、隐私政策更新",
+     "长期：合规体系、风险地图、新业务前置评估"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["合同审核","条款设计","隐私政策","个人信息保护法","数据合规","资质与备案","知识产权","风险评估","监管沟通"]},
+  {g:"工具与生态",t:["合同管理系统","合规知识库","备案平台","法规数据库","电子签"]},
+  {g:"加分项 · 专家级",t:["跨境合规 GDPR","广告法","未成年人保护","算法备案","数据出境","争议解决"]},
+  {g:"度量与指标",t:["合同审核时长","合规事件数","资质齐备率","整改闭环率"]},
+  {g:"黑话与行话",t:["过法务","红线","擦边","免责条款","用户协议","授权链路","合规成本","前置介入","兜底条款"]},
+  {g:"AI 协同",t:["生成式 AI 合规", "算法备案", "AIGC 版权", "数据出境", "大模型服务协议"]}
+ ],
+ rp:["法务越早介入越省钱，但业务永远在最后一天才找你。",
+     "「先上线再补协议」是行业内最常见的风险动作。",
+     "合规的答案通常是「可以，但要改成这样」，而不是「不行」。"]
+};
+
+EXTRA["S-03"]={
+ wk:["日常：接咨询与投诉、处理退款、回复评价",
+     "周期：话术与知识库更新、上线前服务预案",
+     "长期：服务体验优化、自助化与机器人分流、问题归集"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["工单处理","投诉应对","话术设计","知识库维护","问题归类","情绪安抚","服务流程设计","退款与售后"]},
+  {g:"工具与生态",t:["工单系统","在线客服","智能机器人","知识库","评价系统","外呼系统"]},
+  {g:"加分项 · 专家级",t:["自助化设计","服务数据分析","舆情监测","服务体验设计","质检体系"]},
+  {g:"度量与指标",t:["首响时长","一次解决率","满意度 CSAT","升级率","工单量","退款率","舆情量"]},
+  {g:"黑话与行话",t:["工单","首响","超时","升级","挂起","转派","知识库","标准话术","差评","舆情","安抚","兜底方案"]},
+  {g:"AI 协同",t:["AI 客服机器人", "智能工单分类", "AI 话术推荐", "知识库检索"]}
+ ],
+ rp:["客服是唯一每天都在跟真实用户说话的岗位，也是需求最准的入口。",
+     "上线前不给客服预案，等于把第一波投诉留给最没有权限的人。",
+     "满意度高的团队往往不是解决问题最快，而是回应最及时。"]
+};
+
+EXTRA["P-05"]={
+ wk:["日常：调提示词、看 badcase、算成本、回研发与算法的问题",
+     "版本内：定方案（检索/工具/兜底）、写评测集、灰测、验收",
+     "长期：建 AI 能力矩阵、管模型路由与成本、跟合规与备案"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["场景可行性评估","模型能力边界","Prompt 设计与迭代","RAG 方案设计","Function Calling","评测集设计","幻觉治理","兜底与降级策略","多轮对话设计","上下文管理","成本模型","数据闭环"]},
+  {g:"工具与生态",t:["Dify","Coze / 扣子","LangSmith","Prompt 调试台","向量库","标注平台","评测平台","OpenAI / Claude / 豆包 API","神策"]},
+  {g:"加分项 · 专家级",t:["微调与蒸馏判断","Agent 设计","多模态应用","内容安全合规","算法备案流程","按 token / 按次定价","私有化部署评估","模型评测体系"]},
+  {g:"度量与指标",t:["任务成功率","幻觉率","采纳率","每千次调用成本","转人工率","留存","P95 延迟","拒答率"]},
+  {g:"黑话与行话",t:["提示词","兜底话术","能力边界","badcase","幻觉","拒答","灰测","全量","效果回归","模型路由","上下文","冷启动数据","答非所问","这套能上线吗"]}
+ ],
+ rp:["演示能过不等于需求成立，评测集才是验收标准——没有评测集的 AI 需求不该进排期。",
+     "老板看完 demo 就问你什么时候上线，你真正要回答的是成本曲线和失败路径。",
+     "所有 AI 功能都得准备一条「答不上来」的路，否则第一波差评就来自幻觉。",
+     "模型一换版本，之前调好的提示词全部要重测，排期里必须留出这段时间。"]
+};
+
+EXTRA["D-04"]={
+ wk:["日常：画对话流程、改兜底文案、跟研发对状态",
+     "版本内：出 AI 交互稿、定异常态、做走查与体验验证",
+     "长期：沉淀 AI 交互模式库、做信任与可控性研究"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["对话式交互设计","流式输出体验","等待与进度设计","失败重试与纠错","可编辑生成结果","引用与溯源展示","置信度表达","多轮上下文","打断与人工接管","降级方案"]},
+  {g:"设计原则",t:["可控性","可解释性","可撤销","渐进披露","人类兜底","认知负荷","信任设计","容错与防呆"]},
+  {g:"工具与生态",t:["Figma","ProtoPie","提示词调试台","可用性测试","埋点看板","A/B 平台"]},
+  {g:"加分项 · 专家级",t:["语音交互 VUI","多模态交互","AI 人格与语气","无障碍设计","生成式 UI","情感化设计"]},
+  {g:"度量与指标",t:["任务完成率","首答命中率","重试率","编辑率","中断率","信任度评分","反馈采纳率"]},
+  {g:"黑话与行话",t:["流式","打字机效果","思考中","骨架屏","兜底文案","重试","反馈闭环","会话历史","上下文窗口","接管","引导问法"]}
+ ],
+ rp:["用户不会读你的说明，只会记住「它上次胡说了一句」。",
+     "AI 界面最大的设计对象不是按钮，是等待、失败和不确定。",
+     "把「重新生成」做成显眼按钮，比优化十句提示词更能救体验。"]
+};
+
+EXTRA["E-07"]={
+ wk:["日常：答疑、修规则、维护索引与工具",
+     "周期：铺工具、做培训、跑提效度量",
+     "长期：建 AI 编码规范、私有化模型、质量门禁"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["代码库索引","上下文工程","MCP 协议","提示词模板","代码评审自动化","质量门禁","团队规范制定","知识注入"]},
+  {g:"工具与生态",t:["Cursor","Claude Code","GitHub Copilot","通义灵码","MCP Server","GitLab CI","SonarQube","Sourcegraph","LangSmith"]},
+  {g:"加分项 · 专家级",t:["私有化模型部署","代码领域微调","效能度量体系","AI 代码安全审计","多仓库上下文","智能体工作流"]},
+  {g:"度量与指标",t:["工具采纳率","AI 代码缺陷率","需求交付周期","token 成本","评审一次通过率"]},
+  {g:"黑话与行话",t:["vibe coding","AI 生成率","幻觉代码","上下文丢失","一键重构","提效口径","工具落地率","别让它乱改"]}
+ ],
+ rp:["AI 编码工具能不能推广，取决于第一批用的人有没有被它坑过。",
+     "提效必须给口径，否则所有人都在讲体感。",
+     "AI 改出来的代码最容易漏的是边界和异常，评审重点要改。"]
+};
+
+EXTRA["O-04"]={
+ wk:["日常：审 AI 方案、扫风险、跟修复",
+     "周期：红队测试、内容策略更新、备案与评估",
+     "长期：AI 安全体系、合规地图、监管沟通"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["提示词注入","越狱攻击","数据外泄防护","内容安全审核","红线词库","模型输出审计","权限与脱敏","算法备案","生成式 AI 服务合规","红队测试","风险分级"]},
+  {g:"工具与生态",t:["红队评测集","内容审核平台","敏感词库","Burp Suite","审计日志","备案申报系统","WAF"]},
+  {g:"加分项 · 专家级",t:["对抗样本","模型水印","深度伪造检测","数据出境","个保法与 GDPR","等保测评","供应链安全"]},
+  {g:"度量与指标",t:["高危用例数","拦截率","误杀率","备案通过率","安全事件数","整改闭环率"]},
+  {g:"黑话与行话",t:["注入","越狱","套话","越权","红线","备案","生成式服务","内容安全","兜底拦截","擦边","过审"]}
+ ],
+ rp:["AI 安全的难点不是发现风险，是让业务接受「这条不能做」。",
+     "备案和评估要提前三个月排，产品上线前两周才找你只能救火。",
+     "拦截率和误杀率永远在打架，先定业务能忍的误杀线，再谈阈值。"]
+};
+
+EXTRA["G-05"]={
+ wk:["日常：出图出片、审内容、盯数据",
+     "周期：搭模板库、做活动物料、跑数字人场次",
+     "长期：建 AIGC 生产体系、资产库与质检标准"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["AIGC 生产 SOP","提示词模板库","批量生成","数字人运营","虚拟主播","内容质检","人工兜底","版权与授权"]},
+  {g:"工具与生态",t:["Midjourney","Stable Diffusion","ComfyUI","即梦","剪映","数字人平台","Coze","审核平台","素材资产库"]},
+  {g:"加分项 · 专家级",t:["短视频脚本","直播运营","品牌一致性","投放素材适配","多语言本地化"]},
+  {g:"度量与指标",t:["内容产量","爆款率","违规率","单条成本","转化率","完播率","互动率"]},
+  {g:"黑话与行话",t:["出图","抽卡","垫图","一致性","数字人","口播","批量","洗稿","版权","过审","素材老化"]}
+ ],
+ rp:["AIGC 的产能可以无限放大，但账号的容错只有一次。",
+     "数字人直播的成交靠脚本和场控，不靠模型多先进。",
+     "所有生成素材都要留授权和来源，出事时这是唯一的证据。"]
+};
+
+EXTRA["M-05"]={
+ wk:["日常：见客户、写方案、答疑可行性",
+     "项目内：做场景评估、架构方案、报价与交付计划",
+     "长期：沉淀行业方案库、案例与交付标准"],
+ tx:[
+  {g:"硬技能 · JD 必备",t:["需求诊断","场景可行性评估","模型选型","方案架构设计","数据准备方案","成本测算","交付计划","售前支持","验收标准"]},
+  {g:"工具与生态",t:["方案模板","模型评测工具","云平台","报价模型","架构图工具","项目管理"]},
+  {g:"加分项 · 专家级",t:["行业 know-how","私有化与混合部署","合规方案","客户成功","招投标经验"]},
+  {g:"度量与指标",t:["方案中标率","交付按期率","客户采纳率","项目毛利","复购率"]},
+  {g:"黑话与行话",t:["方案","落地","私有化","混合部署","试点","验收","交付卡点","能落地吗","先做个小场景"]}
+ ],
+ rp:["客户说要 AI，八成要的是一个能交差的报表或一个降本数字。",
+     "售前承诺的效果，最终都变成交付团队的债。",
+     "方案的胜负常在数据准备阶段，不在模型选型。"]
+};
+
+EXTRA["I-01"]={
+ wk:["日常：跑训练、看 loss、调数据、扒评测结果",
+     "项目内：定数据配方、跑实验矩阵、出对比报告",
+     "长期：模型迭代、成本压降、领域能力沉淀"],
+ tx:[
+  {g:"训练与框架",t:["PyTorch","Transformers","DeepSpeed","Megatron-LM","FSDP","LoRA","QLoRA","PEFT","LLaMA-Factory","Axolotl","混合精度","梯度检查点","分布式训练","断点续训"]},
+  {g:"数据工程",t:["数据清洗","去重","质量打分","样本配比","指令构造","对话模板","数据蒸馏","合成数据","难例挖掘","标注规范","数据污染检测"]},
+  {g:"对齐与调优",t:["SFT","DPO","RLHF","PPO","拒绝采样","知识蒸馏","剪枝","量化感知训练","超参搜索","课程学习"]},
+  {g:"评测与验证",t:["评测集","困惑度","人工盲评","LLM-as-Judge","过拟合","灾难性遗忘","效果回归","能力对比"]},
+  {g:"度量与指标",t:["评测分数","训练成本","显存占用","收敛步数","推理延迟","效果回归幅度"]},
+  {g:"黑话与行话",t:["跑一版","涨点","训崩","loss 不降","显存爆","卡时","收敛","数据配比","炼丹","权重","底座","对齐"]}
+ ],
+ rp:["模型效果的上限由数据决定，但汇报时九成时间在讲结构。",
+     "一次训练跑三天，所以实验设计比调参手感重要。",
+     "评测集一旦被反复调参看过，它就不再能证明什么。",
+     "显存爆和训崩是日常，所以断点续训和日志才是命根子。"]
+};
+
+EXTRA["I-02"]={
+ wk:["日常：修解析、调召回、处理答非所问",
+     "项目内：建库建索引、做召回评估、上线知识版本",
+     "长期：知识治理、权限体系、索引成本与新鲜度"],
+ tx:[
+  {g:"检索技术",t:["文档解析","版面分析 OCR","分块 Chunking","重叠切分","元数据标注","Embedding 向量化","BM25 混合检索","重排 Rerank","多路召回","查询改写","HyDE","父子块","相似度阈值"]},
+  {g:"工具与生态",t:["Milvus","pgvector","Qdrant","Elasticsearch","Unstructured","LlamaIndex","LangChain","Ragas","知识图谱","增量索引"]},
+  {g:"治理与权限",t:["知识更新","冲突消解","权限隔离","多租户","冷热分层","版本快照","来源溯源"]},
+  {g:"度量与指标",t:["召回率","命中率","答案准确率","幻觉率","索引延迟","知识覆盖率"]},
+  {g:"黑话与行话",t:["切块","召回不准","答非所问","串味","过期知识","重建索引","脏文档","引用不准"]}
+ ],
+ rp:["RAG 效果差，八成是文档太脏，不是模型不行。",
+     "知识库没人维护，半年后就会开始给出「曾经正确」的答案。",
+     "权限没设计好，检索能把不该看的文档答到用户面前。"]
+};
+
+EXTRA["I-03"]={
+ wk:["日常：看轨迹、修工具、处理跑飞的任务",
+     "项目内：设计编排图、接工具、做可观测与接管",
+     "长期：智能体平台、工具生态、成本与安全边界"],
+ tx:[
+  {g:"编排与模式",t:["Planning 规划","Reflection 反思","ReAct","任务分解","多智能体协作","状态机","记忆 Memory","上下文压缩","人工接管 HITL","工作流编排"]},
+  {g:"工具与生态",t:["LangGraph","AutoGen","CrewAI","MCP 协议","Dify","LangSmith","沙箱环境","浏览器工具","代码执行器"]},
+  {g:"工程与安全",t:["Function Calling","超时与重试","幂等工具","死循环检测","权限最小化","审计轨迹","成本上限"]},
+  {g:"度量与指标",t:["任务成功率","平均步数","单任务成本","接管率","幻觉率","工具失败率"]},
+  {g:"黑话与行话",t:["跑飞","死循环","工具挂了","兜底","编排图","记忆","接管","拆任务","自己能干完吗"]}
+ ],
+ rp:["Agent 的能力上限取决于工具质量，不是提示词写得多花。",
+     "没有人工接管的智能体，迟早会在一个边界场景里做出你不想看到的事。",
+     "步数越多越不可控，能用三步做完的任务不要给它十个工具。"]
+};
+
+EXTRA["I-04"]={
+ wk:["日常：跑评测、看掉分、维护用例、判分歧",
+     "周期：建评测集、做版本回归、出准入结论",
+     "长期：评测体系、判分一致性、红队与对抗"],
+ tx:[
+  {g:"评测方法",t:["评测集","Golden Set","标注一致性","Cohen's Kappa","LLM-as-Judge","Pairwise 对比","自动评分","人工盲评","红队","对抗样本","边界用例","长尾用例"]},
+  {g:"工具与生态",t:["LangSmith","Ragas","Promptfoo","标注平台","Jupyter","置信区间计算","回归看板"]},
+  {g:"度量与指标",t:["准确率","召回率","F1","幻觉率","通过率","分数波动","用例覆盖度"]},
+  {g:"黑话与行话",t:["过线","基线","回归","掉分","评测漂移","判分不一致","打标","这题谁判","样本不够"]}
+ ],
+ rp:["评测集是 AI 团队最贵的资产，也是最容易泄露给模型的东西。",
+     "分数涨了先看用例有没有变，别急着庆祝。",
+     "上线准入没有硬线，最后就会变成「老板觉得可以」。"]
+};
+
+EXTRA["I-05"]={
+ wk:["日常：看延迟与 GPU 水位、处理排队与 OOM",
+     "周期：调推理参数、做量化、扩容与压测",
+     "长期：推理框架选型、多模型调度、成本压降"],
+ tx:[
+  {g:"推理框架",t:["vLLM","TensorRT-LLM","SGLang","Triton Inference Server","Ollama","ONNX Runtime","CUDA","cuBLAS","算子融合"]},
+  {g:"性能优化",t:["INT8 / FP8 量化","AWQ / GPTQ","KV Cache","PagedAttention","连续批处理","投机解码","张量并行","流水并行","前缀缓存","显存复用"]},
+  {g:"运维与调度",t:["GPU 调度","多卡多机","弹性伸缩","灰度模型","压测","容量水位","故障转移","配额管理"]},
+  {g:"度量与指标",t:["P95 延迟","TTFT 首字延迟","TPOT","吞吐 QPS","单卡并发","GPU 利用率","每千 token 成本"]},
+  {g:"黑话与行话",t:["爆显存","打满","降配","卡时","排队","冷启动","预热","这套跑得动吗"]}
+ ],
+ rp:["推理成本每降一半，业务能做的场景就多一倍，但没人给你记这笔功。",
+     "压测环境和线上永远不一样，容量要按最坏情况留余量。",
+     "所有「先上小模型顶着」的决定，最后都变成长期架构债。"]
+};
+
+EXTRA["I-06"]={
+ wk:["日常：跑数据、调模型、看指标、处理端上适配",
+     "项目内：建模、训练、端侧部署、效果评测",
+     "长期：多模态能力建设、端云协同、成本与延迟"],
+ tx:[
+  {g:"语音技术",t:["ASR 语音识别","TTS 语音合成","声纹识别","VAD 端点检测","降噪","回声消除","流式识别","热词注入","说话人分离","MOS 评分","WER 字错率","音色克隆"]},
+  {g:"视觉与多模态",t:["OCR","目标检测","图像分割","视频理解","关键帧抽取","多模态对齐","CLIP","视频生成","数字人驱动","唇形同步"]},
+  {g:"部署与优化",t:["端侧推理","ONNX","TensorRT","NCNN","MNN","模型压缩","量化","延迟与功耗优化","端云协同"]},
+  {g:"度量与指标",t:["字错率 WER","MOS","端到端延迟","首包延迟","端侧包体积","识别准确率"]},
+  {g:"黑话与行话",t:["字错率","打断","半双工 / 全双工","音色克隆","唇形","端上跑不动","降噪不过关","口音"]}
+ ],
+ rp:["语音体验的生死线是延迟，准确率再高，慢半秒用户就不用。",
+     "端侧模型永远在包体积和效果之间选一个，选择权通常在老板手里。",
+     "真实场景的噪声和口音，实验室数据永远覆盖不到。"]
+};
+
+EXTRA["I-07"]={
+ wk:["日常：写规范、抽检、答疑、处理争议样本",
+     "周期：组织标注、控质量与产能、做难例挖掘",
+     "长期：样本体系、知识库、标注成本优化"],
+ tx:[
+  {g:"标注与质检",t:["标注规范","标注指南","双人标注","一致性校验","抽检","质检","难例","badcase 归集","样本配比","数据清洗","去重","PII 脱敏"]},
+  {g:"工具与生态",t:["标注平台","Excel","SQL","质检抽样工具","知识库系统","产能看板"]},
+  {g:"运营与管理",t:["产能规划","人力排期","外包管理","单价核算","返工治理","培训考核"]},
+  {g:"度量与指标",t:["标注准确率","一致性 Kappa","返工率","产能","单条成本","样本覆盖率"]},
+  {g:"黑话与行话",t:["打标","标错","返工","难例","埋雷","抽检","样本污染","这条怎么标"]}
+ ],
+ rp:["模型不行的时候，第一个被问的永远是数据。",
+     "标注规范写得含糊，返工成本会翻倍，而且没人会承认是规范的问题。",
+     "外包标注的价格和质量强相关，压价最后都变成返工。"]
+};
+
+EXTRA["I-08"]={
+ wk:["日常：盯流水线、处理发布失败、看漂移告警",
+     "周期：建流水线、做灰度与回滚、接监控",
+     "长期：模型资产治理、资源配额、上线标准化"],
+ tx:[
+  {g:"流水线",t:["CI/CD","模型注册","版本管理","制品库","灰度发布","回滚","环境隔离","依赖锁定","自动评测门禁"]},
+  {g:"监控与治理",t:["效果监控","数据漂移","分布偏移","指标告警","影子流量","A/B 实验","特征一致性","调用审计"]},
+  {g:"工具与生态",t:["MLflow","Kubeflow","Argo Workflows","Feast","Prometheus","Grafana","DVC","Kubernetes"]},
+  {g:"度量与指标",t:["发布成功率","回滚时长","漂移告警数","模型上线周期","资源利用率"]},
+  {g:"黑话与行话",t:["上线","回滚","漂移","影子","双跑","特征不一致","手工拷权重","回滚得了吗"]}
+ ],
+ rp:["模型上线最难的不是发布，是发完之后知道它变差了。",
+     "还在手工拷权重文件的团队，迟早会有一次上线事故。",
+     "漂移告警如果天天响，就没人再看它了。"]
+};
+
+EXTRA["A-05"]={
+ wk:["日常：跑实验、看大盘、调特征与召回路",
+     "周期：建模、离线评估、上线实验、扩量",
+     "长期：链路优化、冷启动治理、多目标平衡"],
+ tx:[
+  {g:"推荐与搜索",t:["协同过滤","双塔模型","DeepFM","DIN","MMoE 多目标","粗排","精排","重排","Query 理解","意图识别","语义召回","LTR 排序","相关性打分","打散策略"]},
+  {g:"特征与检索",t:["特征工程","实时特征","特征平台","样本构造","负采样","Embedding","Faiss","HNSW","多路召回","向量检索","序列建模"]},
+  {g:"工具与生态",t:["PyTorch","Spark","Flink","Redis","AB 实验平台","特征平台","模型 Serving","离线评估平台"]},
+  {g:"度量与指标",t:["CTR","CVR","GAUC","NDCG","Recall@K","人均时长","多样性","冷启覆盖率","EE 探索收益"]},
+  {g:"黑话与行话",t:["召回","排序","冷启","打散","探索利用","指标互搏","样本穿越","大盘涨点","策略兜底","扩量"]}
+ ],
+ rp:["推荐算法的每一次涨点，都可能以用户体验或多样性为代价，但报表上只显示涨。",
+     "冷启动做不好，新内容永远没机会，最后算法只在老供给里内卷。",
+     "离线指标好看、上线掉点，先查样本穿越和特征口径。",
+     "多目标融合的本质是替业务做价值排序，这件事最后往往由老板拍板。"]
+};
+
+/*:EXTRA_MARK*/
+
+/* ===== 渲染 ===== */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const FNAME = {};
+FAMS.forEach(f => FNAME[f.code] = f.name);
+
+const state = {q:"", fam:"all", stage:0};
+
+/* 搜索高亮 */
+function hi(s, q){
+  const e = esc(s);
+  if(!q) return e;
+  const qq = esc(q).toLowerCase();
+  let out = "", rest = e, i;
+  while((i = rest.toLowerCase().indexOf(qq)) > -1){
+    out += rest.slice(0, i) + '<mark class="mark">' + rest.slice(i, i + qq.length) + "</mark>";
+    rest = rest.slice(i + qq.length);
+    if(!rest) break;
+  }
+  return out + rest;
+}
+
+/* 扩展档案 */
+function ext(id){ return EXTRA[id] || {wk: [], tx: [], rp: []}; }
+function termCount(id){
+  return ext(id).tx.reduce((a, g) => a + g.t.length, 0);
+}
+const TERM_TOTAL = ROLES.reduce((a, r) => a + termCount(r.id), 0);
+
+/* 搜索索引：术语、潜规则、工作内容全部可搜 */
+function hay(r){
+  const e = ext(r.id);
+  const terms = e.tx.map(g => g.g + " " + g.t.join(" ")).join(" ");
+  return [r.n, r.t, FNAME[r.f], r.u, r.dn, r.m, r.p, terms, e.rp.join(" "), e.wk.join(" ")]
+    .concat(r.d, r.o, r.k, r.tl, r.s.map(i => STAGES[i-1].name)).join(" ").toLowerCase();
+}
+
+const FIDX = {}; FAMS.forEach((f, i) => FIDX[f.code] = i);
+const RIDX = {}; ROLES.forEach((r, i) => RIDX[r.id] = i);
+
+function filtered(){
+  const q = state.q.trim().toLowerCase();
+  return ROLES.filter(r => {
+    if(state.fam !== "all" && r.f !== state.fam) return false;
+    if(state.stage && r.s.indexOf(state.stage) === -1) return false;
+    if(q && hay(r).indexOf(q) === -1) return false;
+    return true;
+  }).sort((a, b) => (FIDX[a.f] - FIDX[b.f]) || (RIDX[a.id] - RIDX[b.id]));
+}
+
+/* 阶段主干 */
+function renderSpine(){
+  $("spine").innerHTML = STAGES.map((s, i) => `
+    <button class="node${state.stage === i+1 ? " on" : ""}" data-stage="${i+1}" aria-pressed="${state.stage === i+1}">
+      <div class="node-no">${s.no}</div>
+      <div class="node-name">${esc(s.name)}</div>
+      <div class="node-desc">${esc(s.desc)}</div>
+      <div class="node-lead">主导：${esc(s.lead)}</div>
+    </button>`).join("");
+}
+
+/* 职能族筛选 */
+function renderFams(){
+  const counts = {};
+  ROLES.forEach(r => counts[r.f] = (counts[r.f] || 0) + 1);
+  const all = `<button class="chip${state.fam === "all" ? " on" : ""}" data-fam="all">全部 <b>${ROLES.length}</b></button>`;
+  $("fams").innerHTML = all + FAMS.map(f =>
+    `<button class="chip${state.fam === f.code ? " on" : ""}" data-fam="${f.code}">${esc(f.name)} <b>${counts[f.code] || 0}</b></button>`
+  ).join("");
+}
+
+/* 岗位卡片 */
+function renderCards(){
+  const list = filtered();
+  const grid = $("roleGrid");
+
+  let line = `共 <strong>${list.length}</strong> 个岗位`;
+  const marks = [];
+  if(state.fam !== "all") marks.push(FNAME[state.fam]);
+  if(state.stage) marks.push(STAGES[state.stage-1].name);
+  if(state.q.trim()) marks.push("“" + state.q.trim() + "”");
+  if(marks.length) line += ` · 已筛选：${marks.map(esc).join(" / ")} <button id="resetAll" style="border-bottom:1px solid var(--red);color:var(--red);font-size:12.5px;padding:0 1px">清除条件</button>`;
+  $("resultLine").innerHTML = line;
+
+  if(!list.length){
+    grid.innerHTML = `<div class="empty">没有匹配的岗位。换个词试试，比如“灰度”“埋点”“接口”“复盘”；或者点上面的清除条件。</div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map(r => {
+    const ticks = STAGES.map((s, i) => {
+      const idx = i + 1;
+      const cls = r.l.indexOf(idx) > -1 ? "tick l" : (r.s.indexOf(idx) > -1 ? "tick p" : "tick");
+      return `<span class="${cls}"></span>`;
+    }).join("");
+    const e = ext(r.id);
+    const sample = e.tx.length ? e.tx[0].t.slice(0, 5).join(" · ") : "";
+    return `<button class="card" data-id="${r.id}" aria-label="查看 ${esc(r.n)} 详情">
+      <div class="card-top">
+        <span class="fam-code">${r.f}</span>
+        <span class="card-id">${r.id}</span>
+      </div>
+      <div class="card-name">${hi(r.n, state.q.trim())}</div>
+      <div class="card-tag">${hi(r.t, state.q.trim())}</div>
+      <div class="card-out"><b>关键产出：</b>${esc(r.o.slice(0, 3).join("、"))}</div>
+      <div class="card-terms"><b>${termCount(r.id)} 条术语</b> ${esc(sample)}</div>
+      <div class="card-foot">
+        <div class="ticks" title="该岗位在 9 个阶段的分布：红色为主导，灰色为参与">${ticks}</div>
+        <span class="card-arrow">查看详情</span>
+      </div>
+    </button>`;
+  }).join("");
+}
+
+/* 矩阵 */
+function renderMatrix(){
+  $("mxHead").innerHTML = `<tr><th>岗位</th>${STAGES.map(s =>
+    `<th>${s.no}<span>${esc(s.sn)}</span></th>`).join("")}</tr>`;
+
+  const list = filtered();
+  if(!list.length){
+    $("mxBody").innerHTML = `<tr><td class="nm" colspan="10" style="color:var(--ink-3)">没有匹配的岗位</td></tr>`;
+    return;
+  }
+  let html = "";
+  FAMS.forEach(f => {
+    const rows = list.filter(r => r.f === f.code);
+    if(!rows.length) return;
+    html += `<tr class="grp"><td colspan="10">${f.code} · ${esc(f.name)}</td></tr>`;
+    rows.forEach(r => {
+      html += `<tr><td class="nm"><i>${r.id}</i>${esc(r.n)}</td>` +
+        STAGES.map((s, i) => {
+          const idx = i + 1;
+          if(r.l.indexOf(idx) > -1) return `<td class="lead" title="主导">●</td>`;
+          if(r.s.indexOf(idx) > -1) return `<td class="part" title="参与">◐</td>`;
+          return `<td title="不参与">·</td>`;
+        }).join("") + `</tr>`;
+    });
+  });
+  $("mxBody").innerHTML = html;
+}
+
+/* 交付物链路 */
+function renderChain(){
+  $("chainList").innerHTML = CHAIN.map((c, i) => `
+    <div class="step">
+      <div class="step-no">${String(i+1).padStart(2, "0")}</div>
+      <div class="step-art">${esc(c.n)}</div>
+      <div class="step-own"><em>主责</em>${esc(c.o)}</div>
+      <div class="step-to">${esc(c.t)}</div>
+    </div>`).join("");
+}
+
+/* 热门术语 */
+const HOT = ["RAG","Agent","Prompt","SFT","vLLM","MCP","RxJava","包体积","埋点","SLO","归因","PRD"];
+function renderHot(){
+  $("hotTerms").innerHTML = `<span class="lbl">试试搜</span>` +
+    HOT.map(t => `<button class="tchip" data-t="${esc(t)}">${esc(t)}</button>`).join("");
+}
+
+/* 详情抽屉 */
+let lastFocus = null;
+function openDrawer(id){
+  const r = ROLES.find(x => x.id === id);
+  if(!r) return;
+  lastFocus = document.activeElement;
+  $("dwFam").textContent = r.f + " · " + FNAME[r.f];
+  $("dwName").textContent = r.n;
+  $("dwId").textContent = "编号 " + r.id;
+  const e = ext(r.id);
+  const wkHtml = e.wk.map(x => {
+    const i = x.indexOf("：");
+    return i > -1 ? `<div><em>${esc(x.slice(0, i))}</em>${esc(x.slice(i + 1))}</div>` : `<div>${esc(x)}</div>`;
+  }).join("");
+  const termHtml = e.tx.map(g => `
+    <div class="dw-tg">
+      <span class="dw-tg-name">${esc(g.g)}</span>
+      <div class="dw-tlist">${g.t.map(x => `<span>${hi(x, state.q.trim())}</span>`).join("")}</div>
+    </div>`).join("");
+  const rpHtml = e.rp.map((x, i) => `<div><i>R${i + 1}</i>${esc(x)}</div>`).join("");
+
+  $("dwBody").innerHTML = `
+    <p class="dw-tag">${esc(r.t)}</p>
+
+    <div class="dw-block">
+      <h4>在 9 个阶段中的位置</h4>
+      <div class="dw-stage">${STAGES.map((s, i) => {
+        const idx = i + 1;
+        const cls = r.l.indexOf(idx) > -1 ? "l" : (r.s.indexOf(idx) > -1 ? "p" : "");
+        return `<b class="${cls}">${s.no} ${esc(s.name)}</b>`;
+      }).join("")}</div>
+    </div>
+
+    ${wkHtml ? `<div class="dw-block"><h4>工作内容</h4><div class="dw-flow">${wkHtml}</div></div>` : ""}
+    ${termHtml ? `<div class="dw-block"><h4>岗位术语库 · ${termCount(r.id)} 条</h4><div class="dw-terms">${termHtml}</div></div>` : ""}
+    ${rpHtml ? `<div class="dw-block"><h4>没写进 JD 的潜规则</h4><div class="dw-rules">${rpHtml}</div></div>` : ""}
+
+    <div class="dw-block"><h4>核心职责</h4><ul>${r.d.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
+    <div class="dw-block"><h4>关键产出</h4><ul>${r.o.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>
+    <div class="dw-block"><h4>必备能力</h4><div class="dw-tags">${r.k.map(x => `<span>${esc(x)}</span>`).join("")}</div></div>
+    <div class="dw-block"><h4>协作流向</h4><div class="dw-flow">
+      <div><em>输入来自</em>${esc(r.u)}</div>
+      <div><em>交付给</em>${esc(r.dn)}</div>
+    </div></div>
+    <div class="dw-block"><h4>常用工具</h4><div class="dw-tags">${r.tl.map(x => `<span>${esc(x)}</span>`).join("")}</div></div>
+    <div class="dw-block"><h4>衡量标准</h4><div class="dw-flow"><div>${esc(r.m)}</div></div></div>
+    <div class="dw-block"><h4>进阶路径</h4><div class="dw-flow"><div>${esc(r.p)}</div></div></div>
+  `;
+  $("drawer").classList.add("on");
+  $("backdrop").classList.add("on");
+  document.body.classList.add("drawer-open");
+  $("drawer").scrollTop = 0;
+  $("dwClose").focus();
+}
+function closeDrawer(){
+  $("drawer").classList.remove("on");
+  $("backdrop").classList.remove("on");
+  document.body.classList.remove("drawer-open");
+  if(lastFocus) lastFocus.focus();
+}
+
+/* 统一刷新 */
+function refresh(){ renderSpine(); renderFams(); renderCards(); renderMatrix(); }
+
+/* ===== 事件 ===== */
+let timer = null;
+$("q").addEventListener("input", e => {
+  const v = e.target.value;
+  $("clear").classList.toggle("on", !!v);
+  clearTimeout(timer);
+  timer = setTimeout(() => { state.q = v; refresh(); }, 130);
+});
+$("clear").addEventListener("click", () => {
+  $("q").value = ""; state.q = ""; $("clear").classList.remove("on"); refresh(); $("q").focus();
+});
+$("q").addEventListener("keydown", e => {
+  if(e.key === "Escape"){ $("q").value = ""; state.q = ""; $("clear").classList.remove("on"); refresh(); }
+});
+
+$("spine").addEventListener("click", e => {
+  const btn = e.target.closest("[data-stage]");
+  if(!btn) return;
+  const n = +btn.dataset.stage;
+  state.stage = state.stage === n ? 0 : n;
+  refresh();
+  if(state.stage) document.getElementById("roles").scrollIntoView({behavior:"smooth", block:"start"});
+});
+
+$("fams").addEventListener("click", e => {
+  const btn = e.target.closest("[data-fam]");
+  if(!btn) return;
+  state.fam = btn.dataset.fam;
+  refresh();
+});
+
+$("hotTerms").addEventListener("click", e => {
+  const btn = e.target.closest("[data-t]");
+  if(!btn) return;
+  const t = btn.dataset.t;
+  $("q").value = t; state.q = t;
+  $("clear").classList.add("on");
+  refresh();
+  document.getElementById("roles").scrollIntoView({behavior: "smooth", block: "start"});
+});
+
+$("resultLine").addEventListener("click", e => {
+  if(e.target.id !== "resetAll") return;
+  state.q = ""; state.fam = "all"; state.stage = 0;
+  $("q").value = ""; $("clear").classList.remove("on");
+  refresh();
+});
+
+$("roleGrid").addEventListener("click", e => {
+  const c = e.target.closest(".card");
+  if(!c) return;
+  openDrawer(c.dataset.id);
+});
+$("mxBody").addEventListener("click", e => {
+  const td = e.target.closest("td.nm");
+  if(!td) return;
+  const id = td.querySelector("i") ? td.querySelector("i").textContent : "";
+  if(id) openDrawer(id);
+});
+$("dwClose").addEventListener("click", closeDrawer);
+$("backdrop").addEventListener("click", closeDrawer);
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape" && $("drawer").classList.contains("on")) closeDrawer();
+  if(e.key === "/" && document.activeElement !== $("q")){ e.preventDefault(); $("q").focus(); }
+});
+
+/* 首屏 */
+$("termTotal").textContent = TERM_TOTAL;
+renderSpine(); renderFams(); renderHot(); renderCards(); renderMatrix(); renderChain();
+</script>
+</body>
+</html>

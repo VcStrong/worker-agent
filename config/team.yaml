@@ -1,0 +1,52 @@
+# 角色编制（REQ-009）。专家 slug 见 data/merge_map.json
+role_cap: 15            # 编制上限，含总控（技术情报员只管技能维护，不计入）
+tier: standard          # 当前档位：standard（标准）/ lite（精简）
+
+enabled:                # 启用的专家（默认 14 个全部启用）
+  - product-manager
+  - ux-designer
+  - architect
+  - frontend-engineer
+  - client-engineer
+  - backend-engineer
+  - qa-expert
+  - sre-security
+  - data-growth
+  - ai-product-manager
+  - ai-app-engineer
+  - model-algorithm-engineer
+  - ai-infra-mlops
+  - ai-eval-compliance
+
+tiers:
+  lite:
+    name: 精简
+    max_roles: 6        # 一次完整流程调用的不同角色数上限（含总控）
+    roles: [product-manager, architect, frontend-engineer, client-engineer, backend-engineer, qa-expert]
+    # 端工程师是候选池：按需求只选对应的端（含总控总数 ≤ max_roles）；一个 Web + 后端项目可以把 client-engineer 去掉
+    stand_in:
+      ux-designer: product-manager      # 设计由产品经理兼
+      sre-security: architect           # 发布由架构师出方案
+      data-growth: product-manager
+      ai-product-manager: product-manager
+  standard:
+    name: 标准
+    max_roles: 10
+    roles: all          # 14 个专家按需
+
+# AI 专家参与规则（REQ-009）
+ai_participation:
+  ai-product-manager:
+    when: always_at_stage_2          # 每个需求立项时给「AI 机会评估」
+  ai-app-engineer:
+    when: llm_or_ai_efficiency       # 技术方案涉及大模型，或可用 AI 提效时
+    keywords: [大模型, LLM, AI, Agent, RAG, 智能, 生成, 客服机器人, Prompt, MCP]
+  ai-eval-compliance:
+    when: llm_or_pii_or_generated    # 调用大模型、涉及个人信息、生成内容时
+    keywords: [大模型, LLM, AI, 生成, AIGC, 个人信息, 隐私, 人脸, 实名, 未成年人]
+  model-algorithm-engineer:
+    when: self_trained_or_search_rec # 自训练 / 自部署模型、搜索推荐时
+    keywords: [推荐, 搜索排序, 训练, 微调, 自部署, 语音识别, 多模态, 风控模型]
+  ai-infra-mlops:
+    when: self_hosted_model
+    keywords: [自部署, 私有化部署, GPU, 推理服务, vLLM, 模型网关]

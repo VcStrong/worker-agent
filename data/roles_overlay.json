@@ -1,0 +1,7 @@
+{
+  "note": "角色覆盖层（REQ-025）：拍板后的新岗位并入（add_roles + target）、新增专家（new_experts）、下线（retire）。不改图谱原文；由 apply_proposal.py 写入，build / who / validate 都会读取。",
+  "add_roles": [],
+  "merge": {},
+  "new_experts": {},
+  "retire": {}
+}

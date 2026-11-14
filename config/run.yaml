@@ -1,0 +1,19 @@
+# 运行参数（REQ-010 / 013 / 015 / 021 / 028）
+max_parallel: 3            # 同时运行的子 agent 数上限（含同一角色的多个实例）
+max_calls: 30              # 单个需求的最大角色调用次数，到了停下请用户决定
+max_retry: 1               # 角色失败或产物不合格时最多重试次数
+approval_mode: ask         # ask：3 个拍板节点停下等用户；auto：按建议继续并在 log.md 记录理由
+workspace_dir: workspace   # 交付物目录：workspace/<需求名>/<阶段序号>-<产物名>.md
+language: zh-CN            # 默认简体中文；需求写明其他语言时跟随需求
+
+# 模型覆盖：按档位覆盖 frontmatter 的 model（不写就用 merge_map 默认：opus / sonnet）
+model_overrides:
+  lite: {}
+  standard: {}
+  # 例：lite: {data-growth: haiku, architect: sonnet}
+
+# 技能维护
+refresh_remind_days: 30    # 距上次 /skills-refresh 超过多少天提醒
+stale_days: 180            # 普通技能包 as_of 过期阈值
+stale_days_ai: 90          # 5 个 AI 专家挂的技能和 AI 领域技能包
+auto_apply_trivial: false  # true 时只改 as_of / 补来源 / 错别字的提案条目自动应用并记日志

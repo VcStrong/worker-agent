@@ -1,0 +1,7 @@
+# 技术雷达（REQ-020）
+# region 决定国内外有两套方案时谁是默认「采用」（推送、统计、云服务、大模型供应商、设计协作等）
+region: cn                 # cn / global
+
+# 覆盖某技能的成熟度（优先级最高）。改完重新 python3 scripts/build.py
+overrides: {}
+#  webpack: {maturity: 暂缓, reason: 新项目改用 Vite / Rspack}
