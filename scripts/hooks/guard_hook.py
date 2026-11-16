@@ -7,14 +7,18 @@
 - 只读代码 + 写文档的角色（hook 输入带 agent_type 时）写代码文件 → deny
 - 知识库无人值守会话（环境变量 KB_SESSION 非空，REQ-018）：没人能点确认，ask 会挂住或被拒，改成 deny，
   提示改用 kb_ask 请用户确认、由用户执行。知识库自己用 Python 调 git 推送（不经过 Claude 工具）不受影响。
-  deny 是硬拒，所以这时不再对整条命令文本做关键词匹配，而是按 ; && || | 换行 $( 拆段、剥掉引号里的内容，
-  只看每段命令名位置（kb_danger）：grep / echo / git commit -m 里出现的字样不算；git rm、删除会话目录或临时目录里的
-  文件属于日常开发，放行；推送、部署、发布、发推送、删库、丢弃未提交改动、删工作目录以外的文件仍拒绝。
+  deny 是硬拒，所以这时改用 kb_guard.kb_danger 逐段分析（拆 sh -c / eval / ssh / $( ) / 前缀，剥引号和 here-doc 数据）：
+  引号、here-doc、只读命令参数里的字样不算；git rm、删除会话目录或临时目录里的文件放行；
+  推送、部署、发布、发推送、删库、丢弃未提交改动、删工作目录以外或算不出目标的文件拒绝；
+  其余认不出的命令段只要原有 DANGER 规则命中（原来会 ask）仍然拒绝。
 """
 import json
 import os
 import re
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import kb_guard  # noqa: E402
 
 ROOT = os.environ.get("WORKER_AGENT_HOME") or os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 DOC_ROLES = {"product-manager", "ux-designer", "data-growth", "ai-product-manager", "ai-eval-compliance", "tech-scout"}
@@ -40,178 +44,10 @@ DANGER = [
 ]
 
 
-# ---------- 知识库会话（KB_SESSION）：只看命令名位置 ----------
-QUOTED = re.compile(r"\"(?:\\.|[^\"\\])*\"|'[^']*'")
-KB_SPLIT = re.compile(r"\|\||&&|[;|&\n]|\$\(|`|\(|\)")
-WRAPPERS = {"sudo", "env", "time", "nohup", "command", "exec", "nice", "xargs", "builtin", "then", "do", "else", "!", "{"}
-TMP_ROOTS = ["/tmp", "/private/tmp", "/var/folders", "/private/var/folders"]
-DB_CLIENTS = {"mysql", "psql", "sqlite3", "mongo", "mongosh", "clickhouse-client", "sqlcmd"}
-GIT_OPTS_WITH_ARG = {"-C", "-c", "--git-dir", "--work-tree", "--namespace"}
-KB_CMD_DANGER = [  # 匹配「命令名 + 子命令」开头（已去掉 git 全局选项、引号内容）
-    (r"git push\b", "git push"),
-    (r"git remote (add|set-url)\b", "添加 / 修改远端"),
-    (r"git reset\b.*--hard\b", "丢弃未提交改动"),
-    (r"git clean\b.*\s-[a-zA-Z]*f", "丢弃未跟踪文件"),
-    (r"git branch\b.*\s-D\b", "删除分支"),
-    (r"git (checkout|restore)\b.*\s\.(\s|$)", "丢弃未提交改动"),
-    (r"git stash (drop|clear)\b", "删除 stash"),
-    (r"(kubectl|oc) (apply|delete|rollout|scale|set|patch|replace|create)\b", "K8s 部署 / 变更"),
-    (r"helm (install|upgrade|uninstall|rollback|delete)\b", "Helm 发布"),
-    (r"terraform (apply|destroy)\b|pulumi (up|destroy)\b", "基础设施变更"),
-    (r"docker (push|stack deploy)\b|docker compose\b.*\bup\b.*(-d|--detach)", "镜像推送 / 部署"),
-    (r"(npm|pnpm|yarn) publish\b|twine upload\b|cargo publish\b|pod trunk push\b|ohpm publish\b", "发布包"),
-    (r"(vercel|netlify)\b.*(--prod|deploy)\b|firebase deploy\b|fastlane\b|gh release\b|serverless deploy\b|s deploy\b", "部署 / 发布"),
-    (r"dropdb\b|redis-cli\b.*\b(flushall|flushdb)\b", "清空数据库"),
-    (r"((bash|sh|zsh|python3?|node) )?\S*\b(deploy|release|publish)\.(sh|py)\b", "部署 / 发布脚本"),
-    (r"shred\b", "删除文件"),
-]
-SQL_DANGER = re.compile(r"\b(drop\s+(table|database|schema)|truncate\s+table|delete\s+from)\b", re.I)
-PUSH_URL = re.compile(r"(/push\b|/message/send|/messages:send|jpush|getui|fcm\.googleapis|api\.push\.apple)", re.I)
-
-
-HEREDOC = re.compile(r"<<-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
-QMARK = re.compile(r"^\x00(\d+)\x00$")
-
-
-def strip_heredocs(cmd):
-    """去掉 here-doc 正文（commit 说明、python - <<EOF 脚本、cat > f <<EOF 文档），只留起始行。"""
-    lines, out, i = cmd.split("\n"), [], 0
-    while i < len(lines):
-        line = lines[i]
-        out.append(line)
-        i += 1
-        for m in HEREDOC.finditer(line):
-            end = m.group(2)
-            while i < len(lines) and lines[i].strip() != end:
-                i += 1
-            i += 1
-    return "\n".join(out)
-
-
-def _mask(cmd):
-    """引号里的内容换成占位符 \\x00<序号>\\x00（不参与命令名匹配、不影响拆段），返回 (masked, 原文列表)。"""
-    lits = []
-
-    def rep(m):
-        lits.append(m.group(0))
-        return " \x00%d\x00 " % (len(lits) - 1)
-    return QUOTED.sub(rep, cmd), lits
-
-
-def _segments(cmd):
-    """拆成命令段，每段返回去掉前缀（环境变量赋值、sudo / env / xargs 等）后的词；引号内容是占位符。"""
-    masked, lits = _mask(strip_heredocs(cmd))
-    out = []
-    for seg in KB_SPLIT.split(masked):
-        toks = seg.split()
-        while toks and (toks[0] in WRAPPERS or re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", toks[0])):
-            toks = toks[1:]
-        if toks:
-            out.append((toks, lits))
-    return out
-
-
-VAR_REF = re.compile(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?")
-VAR_MKTEMP = re.compile(r"(?:^|[\s;&|(])([A-Za-z_][A-Za-z0-9_]*)=[\"']?\$\(\s*mktemp\b")
-VAR_LIT = re.compile(r"(?:^|[\s;&|(])([A-Za-z_][A-Za-z0-9_]*)=(\"[^\"$`]*\"|'[^']*'|[^\s;&|$`'\"()]+)")
-
-
-def _vars(cmd, cwd):
-    """命令里简单赋值的变量：X=$(mktemp …) → 临时目录；X=字面值 → 该值。$PWD → 工作目录。"""
-    v = {"PWD": cwd, "TMPDIR": os.environ.get("TMPDIR") or "/tmp"}
-    for m in VAR_LIT.finditer(cmd):
-        val = m.group(2)
-        v[m.group(1)] = val[1:-1] if val[:1] in "\"'" else val
-    for m in VAR_MKTEMP.finditer(cmd):
-        v[m.group(1)] = "/tmp/mktemp"
-    return v
-
-
-def _literal(tok, lits, env=None):
-    """占位符还原成去掉引号的字面值，展开已知的简单变量；还有算不出来的 $ / 反引号时返回 None。"""
-    m = QMARK.match(tok)
-    if m:
-        raw = lits[int(m.group(1))]
-        if raw.startswith("'"):
-            return raw[1:-1]
-        tok = raw[1:-1]
-    if "`" in tok or "$(" in tok:
-        return None
-    env = env or {}
-    tok = VAR_REF.sub(lambda x: env.get(x.group(1), "\x01"), tok)
-    return None if ("\x01" in tok or "$" in tok) else tok
-
-
-def _git_norm(toks):
-    """git -C x -c k=v --no-pager push → git push。"""
-    if os.path.basename(toks[0]) != "git":
-        return toks
-    i = 1
-    while i < len(toks) and toks[i].startswith("-"):
-        i += 2 if toks[i] in GIT_OPTS_WITH_ARG else 1
-    return ["git"] + toks[i:]
-
-
-def _inside(path, roots):
-    return any(path == r or path.startswith(r.rstrip(os.sep) + os.sep) for r in roots)
-
-
-def _rm_outside(toks, d, lits, env=None):
-    """rm / find -delete 的目标：都在会话工作目录（不含目录本身和 .git）或临时目录里就放行，返回越界的目标。"""
-    tmp = TMP_ROOTS + [os.path.normpath(os.environ.get("TMPDIR") or "/tmp")]
-    is_find = os.path.basename(toks[0]) == "find"
-    targets = [t for t in toks[1:] if not t.startswith("-")]
-    if is_find:
-        targets = targets[:1] or ["."]   # 搜索起点：删的是它下面匹配到的文件，起点等于工作目录也算目录内
-    bad = []
-    for raw in targets:
-        t = _literal(raw, lits, env)
-        if t is None or not t or t.startswith("~"):
-            bad.append(raw if t is None else (t or "''"))   # 变量 / 命令替换 / 家目录：算不出目标，按越界处理
-            continue
-        ap = os.path.normpath(t if os.path.isabs(t) else os.path.join(d, t))
-        if ".git" in ap.split(os.sep):
-            bad.append(t)
-        elif _inside(ap, tmp) and ap not in tmp:
-            continue        # 临时目录里的东西（不含临时目录根）
-        elif (ap == d and not is_find) or (ap != d and _inside(d, [ap])):
-            bad.append(t)   # 工作目录本身或它的上级
-        elif (ap != d or is_find) and _inside(ap, [d]):
-            continue
-        else:
-            bad.append(t)
-    return bad
-
-
+# ---------- 知识库会话（KB_SESSION）：判断逻辑在 kb_guard.py ----------
 def kb_danger(cmd, cwd):
-    """知识库会话里要硬拒的操作，返回标签或 None。只看每段命令名位置；跟踪 cd 改变的工作目录。"""
-    d = os.path.abspath(cwd)
-    env = _vars(strip_heredocs(cmd), d)
-    for toks, lits in _segments(cmd):
-        name = os.path.basename(toks[0])
-        if name in ("cd", "pushd") and len(toks) > 1:
-            t = _literal(toks[1], lits, env)
-            if t and not t.startswith("-"):
-                d = os.path.normpath(os.path.join(d, os.path.expanduser(t)))
-            continue
-        toks = _git_norm(toks)
-        head = " ".join([os.path.basename(toks[0])] + toks[1:])
-        for pat, label in KB_CMD_DANGER:
-            if re.match(pat, head):
-                return label
-        if name == "rm" or (name == "find" and "-delete" in toks):
-            bad = _rm_outside(toks, d, lits, env)
-            if bad:
-                shown = [(lits[int(QMARK.match(b).group(1))] if QMARK.match(b) else b) for b in bad[:3]]
-                return "删除工作目录以外的文件（%s）" % " ".join(shown)
-        # SQL / 推送地址一般写在引号里：只在数据库客户端、curl 类命令那一段里看引号原文
-        full = " ".join(lits[int(QMARK.match(t).group(1))] if QMARK.match(t) else t for t in toks)
-        if name in DB_CLIENTS and SQL_DANGER.search(full):
-            return "删除数据库数据"
-        if name in ("curl", "wget", "http", "https") and PUSH_URL.search(full):
-            return "发推送"
-    return None
-
+    """知识库会话里要硬拒的操作，返回标签；放行返回 None。认不出的命令按上面 DANGER（原有 ask 规则）兜底。"""
+    return kb_guard.kb_danger(cmd, cwd, DANGER)
 
 SUITE_ROOTS = [os.path.join(ROOT, "agents"), os.path.join(ROOT, "data", "skills"), os.path.join(ROOT, "skills"),
                os.path.join(ROOT, "local", "skills")]
@@ -336,7 +172,7 @@ def decide(evt):
         cmd = (evt.get("tool_input") or {}).get("command", "")
         label = kb_danger(cmd, evt.get("cwd") or os.getcwd())
         if not label:
-            return None   # 危险字样只在参数 / 引号里，或是会话目录内的日常删除：放行
+            return None   # 危险字样只在引号 / here-doc / 只读命令参数里，或是会话目录内的日常删除：放行
         return ("deny", KB_DENY_HINT + "知识库后台会话（KB_SESSION=%s）里没人能当场确认，这一步不执行。"
                 "把要执行的命令和理由写进 kb_ask，由用户本人执行。原因：【角色 agent 安全边界】检测到「%s」类操作，"
                 "需用户确认后才执行。命令：%s" % (os.environ.get("KB_SESSION", "").strip(), label, cmd[:200]))

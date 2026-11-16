@@ -544,11 +544,14 @@ class KbHost(unittest.TestCase):
             "grep -rn 'rm -rf' scripts",
             'git commit -m "fix: rm stale git push note; deploy.sh docs"',
             "git commit -q -F - <<'EOF'\nfix: drop rm -rf and git push from docs\nEOF\ngit log -1",
-            "python3 - <<'EOF'\nimport os\nos.system('npm publish')\nEOF",
+            "python3 - <<'EOF'\ns = s.replace('a', 'git push / rm -rf / delete from t / jpush send')\nEOF",
             'echo "git push origin main"',
             "git rm old.txt", "rm -rf build", "rm -f /tmp/x.log", "cd sub && rm a.txt",
-            "find . -name '*.pyc' -delete", "T=$(mktemp -d); cd $T && rm -rf $T",
+            "find . -name '*.pyc' -delete", "T=$(mktemp -d); cd /x && rm -rf $T", "rm -rf ${TMPDIR}/x",
             'rm -rf "out dir/cache"', "cat deploy.sh", "grep -n push_notification src/a.kt",
+            "bash -c 'git status && rm -rf build'", "ssh host ls /var/log", "rm -f build/a.o > /dev/null 2>&1",
+            "echo $(git rev-parse HEAD)", "curl -sL https://docs.jiguang.cn/jpush/client/push_guide",
+            "for u in https://a/jpush/x https://b/fcm/push; do echo $u; done",
         ]
         for cmd in allowed:
             self.assertIsNone(g(cmd), cmd)
@@ -559,9 +562,43 @@ class KbHost(unittest.TestCase):
             'rm -rf "$(cat /tmp/list)"', "echo x | xargs rm -rf /etc", "kubectl apply -f k.yaml", "npm publish",
             "./deploy.sh prod", "mysql -e 'DROP TABLE t'", "curl -X POST https://api.jpush.cn/v3/push -d '{}'",
             "cat > /tmp/m.txt <<EOF\nhello\nEOF\ngit push",
+            # 审查第 2 轮：原来 ask、第 1 轮漏掉的写法
+            "bash -c 'git push origin main'", 'sh -c "git push"', "eval 'git push'", "timeout 60 git push",
+            "sudo -u root git push", "env -i git push", "\\git push", '"git" push', "nice -n 5 git push",
+            "bash -lc 'cd /tmp && git push'", "xargs -I{} sh -c 'git push {}' < list", "bash <<'EOF'\ngit push\nEOF",
+            "ssh host 'rm -rf /'", "rmdir /Users/someone/dir", "find /etc -name x -exec rm {} \\;",
+            'python3 -c "import sqlite3; c.execute(\'DROP TABLE t\')"',
+            "python3 - <<'EOF'\nimport os\nos.system('npm publish')\nEOF",
+            "python3 - <<'EOF'\nimport subprocess\nsubprocess.run(['git', 'push', 'origin'])\nEOF",
+            "node -e \"require('child_process').execSync('git push')\"",
+            "curl -X POST https://x.com/notification/send -d '{}'",
+            "git branch --delete --force feat", "git checkout -f", "git switch --discard-changes main",
+            "rm -rf $(git rev-parse --show-toplevel)/.git", "rm -rf $(pwd)/../other", "rm -rf `dirname $PWD`",
+            'rm -rf "$(pwd)"/..',
         ]
         for cmd in denied:
             self.assertEqual(g(cmd), "deny", cmd)
+
+    def test_guard_kb_e2e_commands_every_session_type(self):
+        """十类知识库会话（tests/e2e/kb_sessions.sh 的命令组）在 hook 下的判定，自动化版本（不调用模型）；
+        并实际执行第 3 步，证明 commit 说明里写了 git push / rm -rf 也能提交成功。"""
+        repo = tempfile.mkdtemp(prefix="kbe2e-")
+        for args in (["init", "-q", "-b", "main"], ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "init"]):
+            subprocess.run(["git", "-C", repo] + args, check=True, capture_output=True)
+        step3 = "echo '- 补充说明' >> NOTES.md && git add -A && git -c user.name=t -c user.email=t@t commit -q -m \"docs: 说明 rm -rf 与 git push 的风险\" && git log --oneline -1"
+        steps = [("git status --short", None), ('grep -rn "git push\\|rm -rf" README.md || true', None), (step3, None),
+                 ("mkdir -p build && touch build/a.o && rm -rf build && echo removed-build", None),
+                 ("git push origin main", "deny"), ("git reset --hard HEAD", "deny")]
+        sessions = ["dev", "end:Android", "an:demo", "stack:demo", "launch:需求:demo", "scaffold:Web", "px:demo", "flow", "steward"]
+        for kind in sessions:
+            for cmd, want in steps:
+                evt = {"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": repo}
+                rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env={"KB_SESSION": kind})
+                got = json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
+                self.assertEqual(got, want, "%s: %s" % (kind, cmd))
+        r = subprocess.run(["bash", "-c", step3], cwd=repo, capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertIn("说明 rm -rf 与 git push 的风险", r.stdout)
 
     def test_guard_replay_tool(self):
         d = tempfile.mkdtemp()
@@ -606,6 +643,33 @@ class KbHost(unittest.TestCase):
                     "tiers.lite.roles 必须是角色列表"):
             self.assertIn(msg, out)
 
+    def test_kb_scenes_extra_scene_and_wrong_types_no_crash(self):
+        """审查第 2 轮：多出的场景要报；顶层 / 场景 / 档位 / 用途 写成 list 或字符串时报出位置，不崩溃。"""
+        root = copy_repo()
+        p = os.path.join(root, "config", "kb_scenes.json")
+        good = json.load(open(p, encoding="utf-8"))
+        d = json.loads(json.dumps(good))
+        d["场景"]["周报"] = d["场景"]["管家"]
+        d["场景"]["管家"] = ["product-manager"]
+        d["场景"]["方案"]["精简"] = "architect"
+        d["场景"]["需求"]["用途"] = ["x"]
+        d["场景"]["发布"]["标准"]["参与"] = "qa-expert"
+        d["端角色"] = ["client-engineer"]
+        d["只读安全角色"] = "architect"
+        open(p, "w", encoding="utf-8").write(json.dumps(d, ensure_ascii=False))
+        rc, out = run(root, "scripts/validate.py")
+        self.assertNotEqual(rc, 0)
+        self.assertNotIn("Traceback", out)
+        for msg in ("多出场景「周报」", "场景「管家」 必须是对象", "场景「方案」.精简 必须是对象", "场景「需求」.用途 必须是对象",
+                    "场景「发布」.标准.参与 必须是列表", "端角色 必须是对象", "只读安全角色 必须是列表"):
+            self.assertIn(msg, out)
+        for bad in ([1, 2], "x", {"版本": 1, "场景": "管家"}):
+            open(p, "w", encoding="utf-8").write(json.dumps(bad, ensure_ascii=False))
+            rc, out = run(root, "scripts/validate.py")
+            self.assertNotEqual(rc, 0)
+            self.assertNotIn("Traceback", out)
+        self.assertIn("场景 必须是对象", out)
+
     def test_build_reads_artifact_dir_from_scenes(self):
         root = copy_repo()
         p = os.path.join(root, "config", "kb_scenes.json")
@@ -646,7 +710,7 @@ class KbHost(unittest.TestCase):
         open(p, "w", encoding="utf-8").write(json.dumps(d, ensure_ascii=False))
         rc, out = run(root, "scripts/validate.py")
         self.assertNotEqual(rc, 0)
-        for msg in ("版本 必须是 1", "缺少场景：需求体检", "场景「管家」 缺少字段 精简", "场景「管家」.精简 缺少主导角色",
+        for msg in ("版本 必须是 1", "缺少场景：需求体检", "场景「管家」 缺少字段 精简",
                     "只读安全角色 不能含工程师", "backend-engineer"):
             self.assertIn(msg, out)
         open(p, "w", encoding="utf-8").write("{bad json")

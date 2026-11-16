@@ -258,6 +258,25 @@ def check_kb_scenes(rep, mm, team, path=None):
     except Exception as e:
         rep.err(where, "JSON 解析失败：%s" % e)
         return
+    if not isinstance(data, dict):
+        rep.err(where, "顶层必须是 JSON 对象，实际是 %s" % type(data).__name__)
+        return
+
+    def obj(x, ctx, required=True):
+        """取对象；类型不对时报出位置，返回 {}，不让 validate 崩溃。"""
+        if isinstance(x, dict):
+            return x
+        if x is not None or required:
+            rep.err(where, "%s 必须是对象（{…}），实际是 %s" % (ctx, "缺失" if x is None else type(x).__name__))
+        return {}
+
+    def arr(x, ctx, required=True):
+        if isinstance(x, list):
+            return x
+        if x is not None or required:
+            rep.err(where, "%s 必须是列表（[…]），实际是 %s" % (ctx, "缺失" if x is None else type(x).__name__))
+        return []
+
     if data.get("版本") != 1:
         rep.err(where, "版本 必须是 1（知识库按 v1 格式读，版本不对会整表退回内置兜底）：%r" % data.get("版本"))
     known = {k for k, v in mm["experts"].items() if not v.get("retired")}
@@ -266,20 +285,23 @@ def check_kb_scenes(rep, mm, team, path=None):
     def check_role(r, ctx):
         if r == "@端":
             return
-        if r in retired:
+        if not isinstance(r, str):
+            rep.err(where, "%s 的角色名必须是字符串：%r" % (ctx, r))
+        elif r in retired:
             rep.err(where, "%s 引用了已下线的角色：%s" % (ctx, r))
         elif r not in known:
             rep.err(where, "%s 引用了不存在的角色：%s" % (ctx, r))
 
-    for k, r in (data.get("端角色") or {}).items():
+    ends = obj(data.get("端角色"), "端角色")
+    for k, r in ends.items():
         check_role(r, "端角色.%s" % k)
-    if "默认" not in (data.get("端角色") or {}):
+    if ends and "默认" not in ends:
         rep.err(where, "端角色 缺少「默认」（@端 找不到对应端时用）")
     for key in ("只读安全角色", "自动场景不派"):
-        for r in data.get(key) or []:
+        for r in arr(data.get(key), key):
             check_role(r, key)
-    for r in data.get("只读安全角色") or []:
-        if r.endswith("-engineer") or r == "@端":
+    for r in arr(data.get("只读安全角色"), "只读安全角色", required=False):
+        if isinstance(r, str) and (r.endswith("-engineer") or r == "@端"):
             rep.err(where, "只读安全角色 不能含工程师（子 agent 可能不继承只读会话的禁用工具）：%s" % r)
     # 顶层字段（变更 CR-001 契约）
     tiers = team.get("tiers") or {}
@@ -288,7 +310,7 @@ def check_kb_scenes(rep, mm, team, path=None):
         rep.err(where, "档位 必须是 {\"精简\": …, \"标准\": …}：%r" % (tm,))
     else:
         for k, v in tm.items():
-            if v not in tiers:
+            if not isinstance(v, str) or v not in tiers:
                 rep.err(where, "档位.%s=%r 不在 team.yaml tiers 里" % (k, v))
     lim = data.get("每期上限默认")
     if not _nonneg_int(lim) or lim > 200:
@@ -304,15 +326,22 @@ def check_kb_scenes(rep, mm, team, path=None):
         rep.err("config/team.yaml", "tiers.lite.roles 必须是角色列表（kb_scenes.json 的精简名单按它校验）：%r" % (lite_roles,))
         lite_roles = []
     lite_ok = set(lite_roles) | {"@端"}
-    scenes = data.get("场景")
-    if not isinstance(scenes, dict) or not scenes:
-        rep.err(where, "缺少「场景」")
+    scenes = obj(data.get("场景"), "场景")
+    if not scenes:
+        if isinstance(data.get("场景"), dict):
+            rep.err(where, "场景 是空的")
         return
     for name in KB_SCENES_EXPECTED:
         if name not in scenes:
             rep.err(where, "缺少场景：%s" % name)
+    for name in scenes:
+        if name not in KB_SCENES_EXPECTED:
+            rep.err(where, "多出场景「%s」：场景名固定为 %s（加场景要先改契约、升版本）" % (name, "、".join(KB_SCENES_EXPECTED)))
     for name, sc in scenes.items():
         ctx = "场景「%s」" % name
+        if not isinstance(sc, dict):
+            rep.err(where, "%s 必须是对象（{…}），实际是 %s" % (ctx, type(sc).__name__))
+            continue
         for f in KB_SCENE_REQUIRED:
             if f not in sc:
                 rep.err(where, "%s 缺少字段 %s" % (ctx, f))
@@ -329,20 +358,28 @@ def check_kb_scenes(rep, mm, team, path=None):
                 rep.err(where, "%s 每确认点上限 %d 大于整轮上限 %d" % (ctx, per, lim))
         if not isinstance(sc.get("只读"), bool):
             rep.err(where, "%s 只读 必须是 true / false" % ctx)
+        for key in ("触发", "产物"):
+            if key in sc and not isinstance(sc[key], str):
+                rep.err(where, "%s %s 必须是字符串：%r" % (ctx, key, sc[key]))
         for tier in ("标准", "精简"):
-            spec = sc.get(tier) or {}
+            if tier not in sc:
+                continue          # 缺字段已在上面报过
+            tctx = "%s.%s" % (ctx, tier)
+            spec = obj(sc.get(tier), tctx)
+            if not spec:
+                continue
             if not isinstance(spec.get("参与", None), list):
-                rep.err(where, "%s.%s 缺少参与名单（没有参与角色写 []）" % (ctx, tier))
-            roles = ([spec["主导"]] if spec.get("主导") else []) + list(spec.get("参与") or [])
-            if not spec.get("主导"):
-                rep.err(where, "%s.%s 缺少主导角色" % (ctx, tier))
+                rep.err(where, "%s 缺少参与名单（没有参与角色写 []）" % tctx)
+            lead = spec.get("主导")
+            if not lead:
+                rep.err(where, "%s 缺少主导角色" % tctx)
+            roles = ([lead] if lead else []) + list(arr(spec.get("参与"), tctx + ".参与", required=False))
             for r in roles:
-                check_role(r, "%s.%s" % (ctx, tier))
-                if tier == "精简" and r in known and r not in lite_ok:
-                    rep.err(where, "%s.精简 用了 team.yaml tiers.lite 之外的角色：%s" % (ctx, r))
-        for r in (sc.get("用途") or {}):
+                check_role(r, tctx)
+                if tier == "精简" and isinstance(r, str) and r in known and r not in lite_ok:
+                    rep.err(where, "%s 用了 team.yaml tiers.lite 之外的角色：%s" % (tctx, r))
+        for r in obj(sc.get("用途"), ctx + ".用途", required=False):
             check_role(r, "%s.用途" % ctx)
-
 
 # ---------------- 技能包 ----------------
 def check_skills(rep, mm, run):
