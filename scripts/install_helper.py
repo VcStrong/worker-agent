@@ -19,6 +19,8 @@ import common  # noqa: E402
 HOME = common.ROOT
 HAND_SKILLS = ["who", "skills-refresh", "orchestrate"]
 SUITE_DOCS = ["rules", "workflow", "templates/deliverables", "config"]
+# config 目录整体拷贝；这些文件必须在里面（知识库读 role-agents/config/kb_scenes.json，REQ-005 / 019）
+REQUIRED_CONFIG = ["config/kb_scenes.json", "config/team.yaml", "config/run.yaml"]
 
 
 def sha(path):
@@ -64,7 +66,37 @@ def stage_build(base, project, mcp):
         for f in sorted(glob.glob(common.p(d, "**", "*"), recursive=True)):
             if os.path.isfile(f):
                 files["role-agents/" + os.path.relpath(f, HOME)] = f
+    miss = [c for c in REQUIRED_CONFIG if "role-agents/" + c not in files]
+    if miss:
+        raise SystemExit("❌ 套件缺少配置文件：%s" % "、".join(miss))
     return out, files
+
+
+def kb_team_status(base, project, mcp):
+    """REQ-019：安装结束打印知识库角色团是否可用（kb MCP、agent 数、场景表）。返回 (可用, 文案)。"""
+    expected = sorted(set(common.load_merge_map()["experts"]) | {"orchestrator", "tech-scout"})
+    have = [s for s in expected if os.path.exists(os.path.join(base, "agents", s + ".md"))]
+    missing = [s for s in expected if s not in have]
+    if mcp == "auto":
+        sys.path.insert(0, os.path.join(HERE, "lib"))
+        import detect
+        kb = detect.detect(project)["kb"]
+    else:
+        kb = "kb" if "kb" in {x.strip() for x in mcp.split(",")} else None
+    scenes_path = os.path.join(base, "role-agents", "config", "kb_scenes.json")
+    try:
+        scenes = len(json.load(open(scenes_path, encoding="utf-8")).get("场景") or {})
+    except Exception:
+        scenes = 0
+    ok = bool(kb) and not missing and scenes > 0
+    text = "知识库角色团：%s（kb MCP %s，agent %d/%d，场景表 %s）" % (
+        "可用" if ok else "不可用", "✅" if kb else "❌ 未检测到", len(have), len(expected),
+        ("%d 个场景" % scenes) if scenes else "❌ 缺失或解析失败，知识库将用内置兜底")
+    if missing:
+        text += "\n   缺 agent：" + "、".join(missing)
+    if not kb:
+        text += "\n   知识库会话需要 kb MCP：在 Claude Code 里接入知识库 MCP（服务器名 kb）后重新安装"
+    return ok, text
 
 
 def regression_gate():
@@ -172,6 +204,8 @@ def install(a, base, project):
                        capture_output=True, text=True)
     errs = [l for l in r.stdout.splitlines() if l.startswith("❌") and "agents" in l]
     print("   安装位置 agent 校验：%s" % ("通过" if not errs else "有问题：\n" + "\n".join(errs)))
+    ok, text = kb_team_status(base, project, a.mcp)
+    print(("✅ " if ok else "⚠️  ") + text)
     if a.update:
         # 记录本次基线，供下次 --update 比较
         subprocess.run([sys.executable, os.path.join(HERE, "eval_routing", "run_eval.py"), "--save", "--quiet"])

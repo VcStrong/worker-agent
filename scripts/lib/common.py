@@ -18,6 +18,8 @@ CONFIG = os.path.join(ROOT, "config")
 MATURITIES = ["采用", "试用", "评估", "暂缓"]
 AI_DOMAINS = {"ai-product", "ai-app", "ai-model", "ai-infra", "ai-eval"}
 SKILL_REQUIRED_FIELDS = ["id", "name", "roles", "maturity", "as_of", "version", "sources"]
+KB_HOST_MARK = "知识库宿主模式"          # build.py 渲染进每个专家、validate.py 检查（REQ-019）
+KB_SCENES = os.path.join(CONFIG, "kb_scenes.json")  # 知识库场景表（REQ-005）
 SKILL_REQUIRED_SECTIONS = ["什么时候用", "关键做法", "常见坑", "迁移", "最佳做法", "CHANGELOG"]
 
 

@@ -1,5 +1,5 @@
 {
-  "note": "选角评测集（REQ-003）：任务 → 期望首选角色。also_ok 为可接受的备选首选。含原始岗位名问法（kind=raw_role）。",
+  "note": "选角评测集（REQ-003）：任务 → 期望首选角色。also_ok 为可接受的备选首选。含原始岗位名问法（kind=raw_role）和知识库后台会话场景选角题（kind=kb_scene，对应 config/kb_scenes.json 的主导 / 参与角色，REQ-019）。",
   "cases": [
     {"task": "给登录页加埋点方案", "expect": "data-growth", "also_ok": ["product-manager", "frontend-engineer", "client-engineer"]},
     {"task": "写一份会员积分商城的 PRD，含用户故事和验收标准", "expect": "product-manager"},
@@ -42,6 +42,18 @@
     {"task": "请 MLOps 工程师搭模型注册和发布流水线", "expect": "ai-infra-mlops", "kind": "raw_role"},
     {"task": "做大模型评测集，测幻觉率和越狱", "expect": "ai-eval-compliance"},
     {"task": "生成式 AI 功能上线前的备案和生成内容标识合规", "expect": "ai-eval-compliance"},
-    {"task": "请法务看下用户协议和隐私政策的个人信息合规", "expect": "ai-eval-compliance", "kind": "raw_role"}
+    {"task": "请法务看下用户协议和隐私政策的个人信息合规", "expect": "ai-eval-compliance", "kind": "raw_role"},
+    {"task": "知识库会话·管家：帮我设计一个 iOS 开发流程的确认点和开发步骤", "expect": "product-manager", "kind": "kb_scene"},
+    {"task": "知识库会话·流程设计：从技能生成流程，设计开发步骤和确认点", "expect": "product-manager", "kind": "kb_scene"},
+    {"task": "知识库会话·完善需求：按 PRD 骨架补异常态和验收标准", "expect": "product-manager", "kind": "kb_scene"},
+    {"task": "知识库会话·需求：评估这个需求要不要用 AI，给出 AI 机会评估结论", "expect": "ai-product-manager", "kind": "kb_scene"},
+    {"task": "知识库会话·出方案：技术方案、接口契约和 ADR", "expect": "architect", "kind": "kb_scene"},
+    {"task": "知识库会话·方案：对照设计稿检查缺状态和交互异常态", "expect": "ux-designer", "kind": "kb_scene"},
+    {"task": "知识库会话·Bug分析·Android：定位崩溃和 ANR 的根因", "expect": "client-engineer", "kind": "kb_scene"},
+    {"task": "知识库会话·Bug分析：补复现步骤和影响面，看回归测试用例", "expect": "qa-expert", "kind": "kb_scene"},
+    {"task": "知识库会话·Bug修复·Web：修复 React 页面的白屏问题", "expect": "frontend-engineer", "kind": "kb_scene"},
+    {"task": "知识库会话·审查·服务端：Code Review 这次接口改动", "expect": "architect", "kind": "kb_scene"},
+    {"task": "知识库会话·发布：出发布清单，灰度放量和回滚预案", "expect": "sre-security", "also_ok": ["architect"], "kind": "kb_scene"},
+    {"task": "知识库会话·跟进：需求扩展，写变更说明（改什么、影响谁、延后什么）", "expect": "product-manager", "kind": "kb_scene"}
   ]
 }

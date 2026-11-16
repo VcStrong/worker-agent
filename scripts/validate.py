@@ -2,7 +2,7 @@
 """REQ-015 / 027 / 003 / 009 / 018 / 019：校验整套 agent 和数据。
 
 用法：
-  python3 scripts/validate.py                     # 全量校验（agents/、merge_map、team.yaml、技能包、模板、评测集）
+  python3 scripts/validate.py                     # 全量校验（agents/、merge_map、team.yaml、kb_scenes.json、技能包、模板、评测集）
   python3 scripts/validate.py --agents-dir <目录>  # 校验另一处生成 / 安装的 agents（如 <项目>/.claude/agents）
   python3 scripts/validate.py --deliverable <产物.md> [...]   # 只校验交付物是否满足模板必填节
 
@@ -116,6 +116,8 @@ def check_agents(rep, agents_dir, mm, team, run):
             for sec in ("身份", "职责", "产出", "上下游", "判断标准", "边界", "技能清单", "知识时效"):
                 if not re.search(r"^## %s\s*$" % re.escape(sec), text, re.M):
                     rep.err(where, "缺少「%s」节" % sec)
+            if not mm["experts"][name].get("retired") and common.KB_HOST_MARK not in text:
+                rep.err(where, "缺少「%s」段落（build.py 工作方式里渲染，REQ-019），请重新 build / install" % common.KB_HOST_MARK)
             if mm["experts"][name].get("retired") and "已下线" not in desc:
                 rep.err(where, "已下线角色的 description 必须写明「已下线」和替代角色")
     got = set(names)
@@ -230,6 +232,73 @@ def check_team(rep, team, mm):
     total = len(active) + 1  # 含总控
     if total > cap:
         rep.warn(where, "启用角色数 %d（含总控）超过 role_cap=%d，超出的角色：%s" % (total, cap, ", ".join(active[cap - 1:])))
+
+
+# ---------------- kb_scenes.json（REQ-005 / 019） ----------------
+KB_SCENE_REQUIRED = ["触发", "上限", "只读", "标准", "精简"]
+KB_SCENES_EXPECTED = ["管家", "流程设计", "需求", "方案", "开发", "开发·端", "审查·端", "Bug分析", "Bug修复", "跟进", "发布"]
+
+
+def check_kb_scenes(rep, mm, team, path=None):
+    """知识库场景表：JSON 合法、角色名都存在（「@端」按端角色展开）、精简名单只用 team.yaml tiers.lite（含 stand_in 兼任）。"""
+    path = path or common.KB_SCENES
+    where = rel(path)
+    if not os.path.exists(path):
+        rep.err(where, "缺少知识库场景表（知识库会退回内置兜底）")
+        return
+    try:
+        import json
+        data = json.load(open(path, encoding="utf-8"))
+    except Exception as e:
+        rep.err(where, "JSON 解析失败：%s" % e)
+        return
+    known = {k for k, v in mm["experts"].items() if not v.get("retired")}
+    retired = {k for k, v in mm["experts"].items() if v.get("retired")}
+
+    def check_role(r, ctx):
+        if r == "@端":
+            return
+        if r in retired:
+            rep.err(where, "%s 引用了已下线的角色：%s" % (ctx, r))
+        elif r not in known:
+            rep.err(where, "%s 引用了不存在的角色：%s" % (ctx, r))
+
+    for k, r in (data.get("端角色") or {}).items():
+        check_role(r, "端角色.%s" % k)
+    if "默认" not in (data.get("端角色") or {}):
+        rep.err(where, "端角色 缺少「默认」（@端 找不到对应端时用）")
+    for key in ("只读安全角色", "自动场景不派"):
+        for r in data.get(key) or []:
+            check_role(r, key)
+    lite = (team.get("tiers") or {}).get("lite") or {}
+    lite_roles = lite.get("roles") if isinstance(lite.get("roles"), list) else list(known)
+    lite_ok = set(lite_roles) | set((lite.get("stand_in") or {}).values()) | {"@端"}
+    scenes = data.get("场景")
+    if not isinstance(scenes, dict) or not scenes:
+        rep.err(where, "缺少「场景」")
+        return
+    for name in KB_SCENES_EXPECTED:
+        if name not in scenes:
+            rep.err(where, "缺少场景：%s" % name)
+    for name, sc in scenes.items():
+        ctx = "场景「%s」" % name
+        for f in KB_SCENE_REQUIRED:
+            if f not in sc:
+                rep.err(where, "%s 缺少字段 %s" % (ctx, f))
+        lim = sc.get("上限")
+        if not isinstance(lim, int) or isinstance(lim, bool) or lim < 0:
+            rep.err(where, "%s 上限必须是非负整数：%r" % (ctx, lim))
+        for tier in ("标准", "精简"):
+            spec = sc.get(tier) or {}
+            roles = ([spec["主导"]] if spec.get("主导") else []) + list(spec.get("参与") or [])
+            if not spec.get("主导"):
+                rep.err(where, "%s.%s 缺少主导角色" % (ctx, tier))
+            for r in roles:
+                check_role(r, "%s.%s" % (ctx, tier))
+                if tier == "精简" and r in known and r not in lite_ok:
+                    rep.err(where, "%s.精简 用了 team.yaml tiers.lite 之外的角色：%s" % (ctx, r))
+        for r in (sc.get("用途") or {}):
+            check_role(r, "%s.用途" % ctx)
 
 
 # ---------------- 技能包 ----------------
@@ -458,6 +527,7 @@ def main(argv=None):
     check_merge_map(rep, mm)
     check_agents(rep, args.agents_dir, mm, team, run)
     check_team(rep, team, mm)
+    check_kb_scenes(rep, mm, team)
     check_skills(rep, mm, run)
     check_templates(rep)
     check_eval(rep, mm)

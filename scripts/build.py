@@ -29,6 +29,8 @@ KB_WRITE_ORCH = ["kb_log", "kb_ask", "kb_wait_answer", "kb_write_doc"]
 CONTEXT7_TOOLS = ["resolve-library-id", "get-library-docs", "query-docs"]
 GENERATED_MARK = "generated-by: scripts/build.py"
 STAGE_NAMES = {}
+KB_HOST_MARK = common.KB_HOST_MARK
+KB_ARTIFACT_DIR = "其他资料/角色产物"
 
 
 def render(template, ctx):
@@ -222,7 +224,28 @@ class Builder:
         else:
             steps.append("4. 你不改代码：需要改代码时写清改什么、交给哪个工程角色。")
         steps.append("5. 按「判断标准」逐条自检后交付，给总控回一段小结：结论、产物路径、遗留问题、经验条目（踩坑 / 更好的做法 / 某工具已不可用，供复盘回流技能包）。")
-        return "\n".join(steps)
+        return "\n".join(steps) + "\n\n" + self.kb_host_mode(slug, ex)
+
+    def kb_host_mode(self, slug, ex):
+        """REQ-013 / 019：知识库宿主模式。知识库后台会话可能用 --mcp-config 临时挂 kb，安装时未必检测得到，
+        所以不论是否检测到 kb MCP 都渲染这一段（validate.py 检查 KB_HOST_MARK）。"""
+        edit = self.profiles[ex.get("tools_profile", "doc")]["tools"].count("Edit")
+        kb_read = ("开工前先用 kb_search / kb_iteration 读本期资料和以前的结论" if ex.get("kb_first")
+                   else "需要背景时用 kb_search / kb_read 查知识库（主会话没给 kb 工具时以主会话交来的资料为准）")
+        lines = [
+            "### %s（任务说明里写了「知识库会话」时）" % KB_HOST_MARK,
+            "派你的是知识库后台会话的主会话，知识库管流程和拍板，你只出专家意见。这时上面第 1～5 步按下面改：",
+            "- 流程命令照旧：不替主会话推进 SDD / dt / pm 流程，不跑 /orchestrate，不再派别的子 agent，不要 run_in_background。",
+            "- %s；「引用」里写读过的 kb 文档名，不写 workspace 路径。" % kb_read,
+            "- **不写 workspace/、不用 Write 建任何文件**：产物正文（按模板结构，必填节写全）直接作为你的最终回复交回主会话，"
+            "由主会话用 kb 工具落库（PRD / 方案 / Bug 分析走知识库原有工具，其他产物写 %s/<阶段序号>-<产物名>.md）。" % KB_ARTIFACT_DIR,
+            ("- 只有任务说明明确要你在指定仓库里改代码（开发 / Bug 修复）时才用 Edit 改代码；部署、发布、git push、删除一律只出方案。"
+             "分析、审查、预审类任务只读不改。") if edit else "- 你不改代码，也不写文件。",
+            "- 不调 kb_ask / kb_log / kb_write_doc（你也没有这些工具）：需要用户确认的点写成「待确认：问题 / 选项 / 建议」，"
+            "建议末尾注明「建议来自：%s」，由主会话发 kb_ask。有扩大范围和不扩大两类选项时，建议选不扩大。" % self.mm["experts"][slug]["name"],
+            "- 最终回复开头一行写结论，末尾附遗留问题和经验条目（踩坑 / 更好的做法），供期结束时回流成 proposals/lessons-<期名>.md。",
+        ]
+        return "\n".join(lines)
 
     def build_expert(self, slug, tpl):
         info = self.mm["experts"][slug]

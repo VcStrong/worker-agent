@@ -1,5 +1,7 @@
 {
   "hit_rate": 1.0,
+  "mode": "offline",
+  "ts": "2026-11-16T18:01:01+08:00",
   "results": [
     {
       "task": "给登录页加埋点方案",
@@ -417,6 +419,133 @@
       "got": "ai-eval-compliance",
       "top3": [
         "ai-eval-compliance"
+      ],
+      "ok": true
+    },
+    {
+      "task": "知识库会话·管家：帮我设计一个 iOS 开发流程的确认点和开发步骤",
+      "expect": "product-manager",
+      "got": "product-manager",
+      "top3": [
+        "product-manager",
+        "client-engineer",
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "知识库会话·流程设计：从技能生成流程，设计开发步骤和确认点",
+      "expect": "product-manager",
+      "got": "product-manager",
+      "top3": [
+        "product-manager",
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "知识库会话·完善需求：按 PRD 骨架补异常态和验收标准",
+      "expect": "product-manager",
+      "got": "product-manager",
+      "top3": [
+        "product-manager",
+        "ai-product-manager",
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "知识库会话·需求：评估这个需求要不要用 AI，给出 AI 机会评估结论",
+      "expect": "ai-product-manager",
+      "got": "ai-product-manager",
+      "top3": [
+        "ai-product-manager",
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "知识库会话·出方案：技术方案、接口契约和 ADR",
+      "expect": "architect",
+      "got": "architect",
+      "top3": [
+        "architect",
+        "backend-engineer",
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "知识库会话·方案：对照设计稿检查缺状态和交互异常态",
+      "expect": "ux-designer",
+      "got": "ux-designer",
+      "top3": [
+        "ux-designer",
+        "data-growth",
+        "ai-product-manager"
+      ],
+      "ok": true
+    },
+    {
+      "task": "知识库会话·Bug分析·Android：定位崩溃和 ANR 的根因",
+      "expect": "client-engineer",
+      "got": "client-engineer",
+      "top3": [
+        "client-engineer",
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "知识库会话·Bug分析：补复现步骤和影响面，看回归测试用例",
+      "expect": "qa-expert",
+      "got": "qa-expert",
+      "top3": [
+        "qa-expert",
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "知识库会话·Bug修复·Web：修复 React 页面的白屏问题",
+      "expect": "frontend-engineer",
+      "got": "frontend-engineer",
+      "top3": [
+        "frontend-engineer",
+        "ai-app-engineer",
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "知识库会话·审查·服务端：Code Review 这次接口改动",
+      "expect": "architect",
+      "got": "architect",
+      "top3": [
+        "architect",
+        "backend-engineer",
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "知识库会话·发布：出发布清单，灰度放量和回滚预案",
+      "expect": "sre-security",
+      "got": "sre-security",
+      "top3": [
+        "sre-security",
+        "client-engineer",
+        "data-growth"
+      ],
+      "ok": true
+    },
+    {
+      "task": "知识库会话·跟进：需求扩展，写变更说明（改什么、影响谁、延后什么）",
+      "expect": "product-manager",
+      "got": "product-manager",
+      "top3": [
+        "product-manager",
+        "data-growth"
       ],
       "ok": true
     }

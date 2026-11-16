@@ -1,0 +1,136 @@
+{
+  "版本": 1,
+  "说明": "知识库场景表（REQ-005）：知识库后台会话按场景派哪些专家子 agent。知识库（kblib/ai/team.py）读安装后的 ~/.claude/role-agents/config/kb_scenes.json，缺失或解析失败时用内置兜底表。角色名是 agent slug；「@端」表示按会话所在端换成「端角色」里对应的工程师。每个场景都给出「标准」「精简」两档的显式名单（知识库只依赖标准库、不解析 team.yaml），validate.py 校验精简名单只用 team.yaml tiers.lite 的角色。知识库再按已安装的 agent 过滤，未安装的角色从派单里去掉。",
+  "档位": {"精简": "lite", "标准": "standard"},
+  "端角色": {
+    "Android": "client-engineer",
+    "iOS": "client-engineer",
+    "鸿蒙": "client-engineer",
+    "小程序": "client-engineer",
+    "客户端": "client-engineer",
+    "Unity": "client-engineer",
+    "Web": "frontend-engineer",
+    "前端": "frontend-engineer",
+    "H5": "frontend-engineer",
+    "服务端": "backend-engineer",
+    "后端": "backend-engineer",
+    "默认": "backend-engineer"
+  },
+  "只读安全角色": ["product-manager", "ux-designer", "qa-expert", "architect"],
+  "自动场景不派": ["product-manager", "architect", "ai-product-manager"],
+  "自动场景模型": "sonnet",
+  "每期上限默认": 30,
+  "产物目录": "其他资料/角色产物",
+  "场景": {
+    "管家": {
+      "触发": "问管家：涉及流程或需求设计时派产品经理，涉及技术时派架构师；只是问答不派",
+      "上限": 1,
+      "只读": true,
+      "标准": {"主导": "product-manager", "参与": ["architect"]},
+      "精简": {"主导": "product-manager", "参与": ["architect"]},
+      "用途": {"product-manager": "流程、确认点、需求设计", "architect": "技术判断、选型"},
+      "产物": ""
+    },
+    "流程设计": {
+      "触发": "从技能生成流程（AI）：请产品经理设计开发步骤和确认点，最后只输出 JSON",
+      "上限": 1,
+      "只读": true,
+      "标准": {"主导": "product-manager", "参与": []},
+      "精简": {"主导": "product-manager", "参与": []},
+      "用途": {"product-manager": "设计开发步骤和确认点"},
+      "产物": ""
+    },
+    "需求": {
+      "触发": "完善需求：产品经理按 /pm 11 章骨架补齐异常态、可测验收（当…时，应…）、埋点口径；AI 产品经理给 AI 机会评估；涉及埋点时加数据与增长运营",
+      "上限": 3,
+      "只读": true,
+      "标准": {"主导": "product-manager", "参与": ["ai-product-manager", "data-growth"]},
+      "精简": {"主导": "product-manager", "参与": []},
+      "用途": {"product-manager": "PRD 主笔、异常态、验收标准", "ai-product-manager": "AI 机会评估", "data-growth": "埋点方案与指标口径"},
+      "产物": "PRD"
+    },
+    "需求体检": {
+      "触发": "管家巡检发现新需求资料（P3）：列待确认问题、缺的异常态、指标口径",
+      "上限": 3,
+      "只读": true,
+      "标准": {"主导": "product-manager", "参与": ["ux-designer", "ai-product-manager"]},
+      "精简": {"主导": "product-manager", "参与": []},
+      "用途": {"product-manager": "需求体检主笔", "ux-designer": "交互缺口与异常态", "ai-product-manager": "AI 机会评估"},
+      "产物": "需求体检"
+    },
+    "方案": {
+      "触发": "出方案：架构师主导；产品经理拆需求、写验收；体验设计师对照设计稿；需要新接口时加后端工程师",
+      "上限": 4,
+      "只读": true,
+      "标准": {"主导": "architect", "参与": ["product-manager", "ux-designer", "backend-engineer"]},
+      "精简": {"主导": "architect", "参与": ["product-manager", "backend-engineer"]},
+      "用途": {"architect": "技术方案、接口契约、风险", "product-manager": "拆需求、验收标准", "ux-designer": "对照设计稿、缺状态", "backend-engineer": "新接口与数据变更"},
+      "产物": "方案"
+    },
+    "开发": {
+      "触发": "开发包裹：只在流程确认点发 kb_ask 前请架构师或产品经理预审，意见附在 context，recommend 末尾注明「建议来自：<角色>」",
+      "上限": 6,
+      "每确认点上限": 1,
+      "只读": false,
+      "标准": {"主导": "architect", "参与": ["product-manager"]},
+      "精简": {"主导": "architect", "参与": ["product-manager"]},
+      "用途": {"architect": "规划 / 接口 / 技术方案类确认点预审", "product-manager": "需求 / 待确认问题类确认点预审"},
+      "产物": ""
+    },
+    "开发·端": {
+      "触发": "全栈各端开发：确认点前请架构师预审，测试专家补用例",
+      "上限": 6,
+      "每确认点上限": 1,
+      "只读": false,
+      "标准": {"主导": "architect", "参与": ["qa-expert"]},
+      "精简": {"主导": "architect", "参与": ["qa-expert"]},
+      "用途": {"architect": "确认点预审", "qa-expert": "用例与自测覆盖"},
+      "产物": ""
+    },
+    "审查·端": {
+      "触发": "全栈各端审查：架构师做 Code Review，测试专家看用例覆盖",
+      "上限": 2,
+      "只读": true,
+      "标准": {"主导": "architect", "参与": ["qa-expert"]},
+      "精简": {"主导": "architect", "参与": ["qa-expert"]},
+      "用途": {"architect": "Code Review", "qa-expert": "用例覆盖与回归"},
+      "产物": "测试报告"
+    },
+    "Bug分析": {
+      "触发": "Bug 分析：对应端工程师定位，测试专家补复现步骤和影响面（只读场景若子 agent 不继承禁用工具，工程师不派，改由测试专家 + 架构师）",
+      "上限": 2,
+      "只读": true,
+      "标准": {"主导": "@端", "参与": ["qa-expert"]},
+      "精简": {"主导": "@端", "参与": ["qa-expert"]},
+      "用途": {"@端": "定位根因", "qa-expert": "复现步骤、影响面"},
+      "产物": "Bug分析"
+    },
+    "Bug修复": {
+      "触发": "Bug 修复：对应端工程师",
+      "上限": 1,
+      "只读": false,
+      "标准": {"主导": "@端", "参与": []},
+      "精简": {"主导": "@端", "参与": []},
+      "用途": {"@端": "按通过的分析修复并自测"},
+      "产物": ""
+    },
+    "跟进": {
+      "触发": "期里发跟进：先判类型。问题 → 不派角色直接回答；缺陷 → 端工程师 + 测试专家；需求扩展 → 产品经理先写变更说明（改什么、影响谁、延后什么）再 kb_ask",
+      "上限": 2,
+      "只读": false,
+      "标准": {"主导": "product-manager", "参与": ["@端", "qa-expert"]},
+      "精简": {"主导": "product-manager", "参与": ["@端", "qa-expert"]},
+      "用途": {"product-manager": "需求扩展的变更说明（默认不扩大范围）", "@端": "缺陷定位", "qa-expert": "缺陷复现与影响面"},
+      "产物": "变更说明"
+    },
+    "发布": {
+      "触发": "出发布清单：标准档 SRE 与安全工程师，精简档由架构师兼",
+      "上限": 1,
+      "只读": true,
+      "标准": {"主导": "sre-security", "参与": []},
+      "精简": {"主导": "architect", "参与": []},
+      "用途": {"sre-security": "灰度、回滚、监控、安全检查", "architect": "兼发布方案：灰度、回滚"},
+      "产物": "发布清单"
+    }
+  }
+}

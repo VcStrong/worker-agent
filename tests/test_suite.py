@@ -32,6 +32,7 @@ def copy_repo(git=False):
 def run(root, *args, env=None, stdin=None):
     e = dict(os.environ)
     e.pop("WORKER_AGENT_HOME", None)
+    e.pop("KB_SESSION", None)  # 测试可能跑在知识库后台会话里，hook 行为不能受外层环境影响
     e.update(env or {})
     r = subprocess.run([PY] + [os.path.join(root, a) if a.endswith(".py") and not os.path.isabs(a) else a for a in args],
                        capture_output=True, text=True, cwd=root, env=e, input=stdin)
@@ -509,6 +510,82 @@ class Install(unittest.TestCase):
         self.assertNotIn("qa-expert.md", left)
         s = json.load(open(os.path.join(proj, ".claude", "settings.json")))
         self.assertEqual(s, settings)
+
+
+class KbHost(unittest.TestCase):
+    """角色团接入知识库：REQ-005 / 013 / 018 / 019。"""
+
+    def test_guard_kb_session_ask_becomes_deny(self):
+        def g(evt, env=None):
+            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=env)
+            return json.loads(out)["hookSpecificOutput"] if out.strip() else None
+        push = {"tool_name": "Bash", "tool_input": {"command": "git push origin main"}}
+        for cmd in ("git push origin main", "rm -rf build", "npm publish", "kubectl apply -f x.yaml"):
+            d = g({"tool_name": "Bash", "tool_input": {"command": cmd}}, {"KB_SESSION": "steward"})
+            self.assertEqual(d["permissionDecision"], "deny", cmd)
+            self.assertIn("无人值守：用 kb_ask 请用户确认，由用户执行", d["permissionDecisionReason"])
+        self.assertEqual(g(push)["permissionDecision"], "ask")                       # 不在知识库会话：照旧 ask
+        self.assertEqual(g(push, {"KB_SESSION": "  "})["permissionDecision"], "ask")  # 空值不算
+        self.assertIsNone(g({"tool_name": "Bash", "tool_input": {"command": "npm test"}}, {"KB_SESSION": "flow"}))
+        d = g({"tool_name": "Write", "tool_input": {"file_path": os.path.join(REPO, "data/skills/frontend/vite.md")}}, {"KB_SESSION": "flow"})
+        self.assertEqual(d["permissionDecision"], "deny")                           # 原有 deny 不变
+        self.assertNotIn("无人值守", d["permissionDecisionReason"])
+
+    def test_kb_scenes_valid_and_bad_role_fails(self):
+        scenes = json.load(open(os.path.join(REPO, "config", "kb_scenes.json"), encoding="utf-8"))
+        limits = {k: v["上限"] for k, v in scenes["场景"].items()}
+        self.assertEqual(limits["方案"], 4)
+        self.assertEqual(limits["管家"], 1)
+        self.assertEqual(limits["发布"], 1)
+        self.assertEqual(scenes["场景"]["发布"]["精简"]["主导"], "architect")
+        self.assertEqual(scenes["场景"]["发布"]["标准"]["主导"], "sre-security")
+        root = copy_repo()
+        run(root, "scripts/build.py", "--mcp", "none")
+        rc, out = run(root, "scripts/validate.py")
+        self.assertEqual(rc, 0, out)
+        p = os.path.join(root, "config", "kb_scenes.json")
+        t = open(p, encoding="utf-8").read()
+        open(p, "w", encoding="utf-8").write(t.replace('"主导": "sre-security"', '"主导": "devops-guru"')
+                                             .replace('"精简": {"主导": "architect", "参与": []}', '"精简": {"主导": "ux-designer", "参与": []}'))
+        rc, out = run(root, "scripts/validate.py")
+        self.assertNotEqual(rc, 0)
+        self.assertIn("引用了不存在的角色：devops-guru", out)
+        self.assertIn("精简 用了 team.yaml tiers.lite 之外的角色：ux-designer", out)
+        open(p, "w", encoding="utf-8").write("{bad json")
+        rc, out = run(root, "scripts/validate.py")
+        self.assertIn("JSON 解析失败", out)
+
+    def test_build_renders_kb_host_mode(self):
+        root = copy_repo()
+        for mcp in ("none", "kb"):
+            run(root, "scripts/build.py", "--mcp", mcp)
+            for slug in ("product-manager", "client-engineer"):
+                t = open(os.path.join(root, "agents", slug + ".md"), encoding="utf-8").read()
+                self.assertIn("知识库宿主模式", t)
+                self.assertIn("不写 workspace/、不用 Write", t)
+                self.assertIn("不要 run_in_background", t)
+        t = open(os.path.join(root, "agents", "product-manager.md"), encoding="utf-8").read()
+        self.assertIn("建议来自：产品经理", t)
+        # 删掉宿主模式段落 → validate 报错
+        p = os.path.join(root, "agents", "qa-expert.md")
+        t = open(p, encoding="utf-8").read()
+        open(p, "w", encoding="utf-8").write(t.replace("知识库宿主模式", "x"))
+        rc, out = run(root, "scripts/validate.py")
+        self.assertNotEqual(rc, 0)
+        self.assertIn("缺少「知识库宿主模式」段落", out)
+
+    def test_install_copies_scenes_and_prints_status(self):
+        root = copy_repo()
+        proj = tempfile.mkdtemp()
+        sh = os.path.join(root, "install.sh")
+        r = subprocess.run(["bash", sh, "--project", proj, "--mcp", "kb", "--no-hooks"], capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
+        self.assertTrue(os.path.exists(os.path.join(proj, ".claude", "role-agents", "config", "kb_scenes.json")))
+        self.assertIn("知识库角色团：可用（kb MCP ✅，agent 16/16", r.stdout)
+        r = subprocess.run(["bash", sh, "--uninstall", "--project", proj], capture_output=True, text=True)
+        proj2 = tempfile.mkdtemp()
+        r = subprocess.run(["bash", sh, "--project", proj2, "--mcp", "none", "--no-hooks"], capture_output=True, text=True)
+        self.assertIn("知识库角色团：不可用（kb MCP ❌ 未检测到", r.stdout)
 
 
 class Deliverables(unittest.TestCase):

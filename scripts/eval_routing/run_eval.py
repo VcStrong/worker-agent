@@ -52,10 +52,12 @@ def evaluate(llm=False, verbose=True):
     if verbose:
         for r in results:
             print("%s %-34s 期望 %-24s 得到 %s" % ("✅" if r["ok"] else "❌", r["task"][:34], r["expect"], r["got"]))
-        print("首选命中率：%.1f%%（%d/%d），原始岗位名问法：%d/%d" % (
+        print("首选命中率：%.1f%%（%d/%d），原始岗位名问法：%d/%d，知识库场景：%d/%d" % (
             hit * 100, sum(r["ok"] for r in results), len(results),
             sum(r["ok"] for r, c in zip(results, cases) if c.get("kind") == "raw_role"),
-            sum(1 for c in cases if c.get("kind") == "raw_role")))
+            sum(1 for c in cases if c.get("kind") == "raw_role"),
+            sum(r["ok"] for r, c in zip(results, cases) if c.get("kind") == "kb_scene"),
+            sum(1 for c in cases if c.get("kind") == "kb_scene")))
     return hit, results
 
 
