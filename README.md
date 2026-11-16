@@ -64,7 +64,7 @@
 
 - `config/kb_scenes.json`：场景表契约。场景（管家 / 流程设计 / 需求 / 需求体检 / 方案 / 开发 / 开发·端 / 审查·端 / Bug分析 / Bug修复 / 跟进 / 发布）→ 主导角色、参与角色、触发条件、每会话调用上限、是否只读、产物名；「标准」「精简」两档各给一份显式名单（知识库只用标准库，不解析 YAML），`@端` 按「端角色」换成对应端的工程师。安装时拷到 `~/.claude/role-agents/config/kb_scenes.json`，知识库读不到时用它自己的内置兜底表。格式是知识库和套件之间的 v1 契约（变更 CR-001），改字段结构要升「版本」并通知知识库同步内置兜底表。`validate.py` 检查：版本=1、12 个场景齐全、每个场景有上限 / 只读 / 标准与精简两档的主导和参与、所有角色名存在（或 `@端`）、精简名单 ⊆ `team.yaml` tiers.lite.roles、只读安全角色不含工程师。
 - **知识库宿主模式**：每个专家的「工作方式」末尾都有这一段（不论安装时是否检测到 kb MCP）。任务说明里写了「知识库会话」时，不写 `workspace/`、不用 Write 建文件，产物正文作为最终回复交回主会话，由主会话用 kb 工具落库（其他产物写到 `其他资料/角色产物/`）；建议注明「建议来自：<角色>」，拍板由主会话发 kb_ask。
-- **guard hook 无人值守**：环境变量 `KB_SESSION` 非空（知识库后台会话）时，原来要弹确认（ask）的危险操作直接拒绝（deny），提示「无人值守：用 kb_ask 请用户确认，由用户执行」，会话不会挂住。知识库自己用 Python 调 git 推送不经过 hook，不受影响。
+- **guard hook 无人值守**：环境变量 `KB_SESSION` 非空（知识库后台会话）时没人能点确认，危险操作直接拒绝（deny），提示「无人值守：用 kb_ask 请用户确认，由用户执行」，会话不会挂住。因为是硬拒，这时只看每段命令的命令名位置（按 `;` `&&` `|` 换行 `$(` 拆段，剥掉引号和 here-doc 正文）：grep / echo / commit 说明里出现的字样不算；`git rm`、删除工作目录或临时目录里的文件放行；`git push`、改远端、`git reset --hard` / `git clean -f` / `git checkout -- .`、删工作目录以外（或算不出目标）的文件、部署发布、发推送、删库仍拒绝。知识库自己用 Python 调 git 推送不经过 hook，不受影响。`refresh_check` 在知识库会话里不注入提醒、不占当天的提醒次数。实测记录见 `docs/evidence/kb-hooks-e2e.md`；`python3 scripts/hooks/replay_guard.py <知识库目录>` 可以把历史会话命令放到当前 hook 下重放。
 - 安装结束打印「知识库角色团：可用（kb MCP ✅，agent 16/16，场景表 12 个场景）」；不可用时写明缺什么。
 - 注意：用户级安装的 hooks 也作用于你自己的交互式 Claude Code 会话（那里没有 `KB_SESSION`，危险操作照旧弹确认）。
 
@@ -139,7 +139,7 @@ rules/arbitration.md         6 条仲裁规则
 config/                      team / run / radar / sources / kb_scenes.json（知识库场景表）
 proposals/                   提案、经验、待核实、驳回记录
 scripts/                     extract build validate who usage_report refresh_check apply_proposal rollback install_helper
-scripts/hooks/               usage_hook guard_hook
+scripts/hooks/               usage_hook guard_hook replay_guard（知识库会话命令重放）
 scripts/eval_routing/        选角评测（54 条，含 12 条知识库场景题）；scripts/eval_skills/ 技能回归题（53 条）
 examples/checkin-points/     端到端样例：App 每日签到 + 积分
 tests/                       自测（python3 -m unittest discover -s tests）

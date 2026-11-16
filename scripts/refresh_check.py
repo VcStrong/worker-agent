@@ -5,6 +5,7 @@
   - 距上次 /skills-refresh 超过 refresh_remind_days（默认 30 天）
   - 有技能包 as_of 超过 stale_days（普通 180 天、AI 领域 90 天）
 同一天最多提醒一次；用户回「暂缓 N 天」时运行 --snooze N。
+知识库后台会话（环境变量 KB_SESSION 非空）里 --hook 什么都不做：不注入提醒、不记 last_remind。
 
 用法：
   python3 scripts/refresh_check.py            # 打印提醒（不满足条件时不输出）
@@ -113,6 +114,9 @@ def main(argv=None):
         st["last_refresh"] = today.isoformat()
         save_state(st)
         print("✅ 已记录本次技能侦察时间 %s" % st["last_refresh"])
+        return 0
+    if a.hook and (os.environ.get("KB_SESSION") or "").strip():
+        # 知识库无人值守会话：没人看得到提醒，不注入上下文，也不占用当天的提醒（留给用户本人的交互会话）
         return 0
     try:
         if not a.force:

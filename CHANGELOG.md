@@ -4,8 +4,12 @@
 
 - 新增 `config/kb_scenes.json`：知识库后台会话的场景 → 角色表（REQ-005），随安装拷到 `role-agents/config/`。
 - build：每个专家渲染「知识库宿主模式」段落：不写 workspace/、不用 Write，正文作为最终回复交回（REQ-013 / 019）。
-- guard_hook：`KB_SESSION` 存在时 ask → deny，提示改用 kb_ask（REQ-018）。
-- validate：校验 kb_scenes.json（版本=1、12 个场景、字段完整、角色名、精简 ⊆ tiers.lite.roles、只读安全角色不含工程师）和宿主模式段落（REQ-019，变更 CR-001）。
+- guard_hook：`KB_SESSION` 存在时 ask → deny，提示改用 kb_ask（REQ-018）；硬拒只看命令名位置（拆段、剥引号和 here-doc），
+  grep / echo / commit 说明里的字样、git rm、删工作目录或临时目录里的文件不再误伤（审查第 1 轮）。
+- 新增 scripts/hooks/replay_guard.py（历史会话命令重放）、tests/e2e/kb_sessions.sh（十类知识库会话实测），记录见 docs/evidence/kb-hooks-e2e.md。
+- refresh_check：知识库会话里 --hook 不注入提醒、不记 last_remind。
+- validate：校验 kb_scenes.json（版本=1、12 个场景、字段完整、每确认点上限、档位映射、每期上限默认、自动场景模型、产物目录、角色名、精简 ⊆ tiers.lite.roles 且 roles 必须是列表、只读安全角色不含工程师）和宿主模式段落（REQ-019，变更 CR-001）。
+- build：宿主模式里的产物目录从 kb_scenes.json 的「产物目录」读。
 - 选角评测加 12 条知识库场景题；产品经理补术语「确认点、开发流程、需求变更说明、需求扩展」，体验设计师补「设计稿、缺状态」。
 - install：检查 config 带上 kb_scenes.json，结束时打印知识库角色团可用状态（REQ-019）。
 

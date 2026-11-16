@@ -520,7 +520,7 @@ class KbHost(unittest.TestCase):
             rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=env)
             return json.loads(out)["hookSpecificOutput"] if out.strip() else None
         push = {"tool_name": "Bash", "tool_input": {"command": "git push origin main"}}
-        for cmd in ("git push origin main", "rm -rf build", "npm publish", "kubectl apply -f x.yaml"):
+        for cmd in ("git push origin main", "rm -rf /opt/build", "npm publish", "kubectl apply -f x.yaml"):
             d = g({"tool_name": "Bash", "tool_input": {"command": cmd}}, {"KB_SESSION": "steward"})
             self.assertEqual(d["permissionDecision"], "deny", cmd)
             self.assertIn("无人值守：用 kb_ask 请用户确认，由用户执行", d["permissionDecisionReason"])
@@ -530,6 +530,92 @@ class KbHost(unittest.TestCase):
         d = g({"tool_name": "Write", "tool_input": {"file_path": os.path.join(REPO, "data/skills/frontend/vite.md")}}, {"KB_SESSION": "flow"})
         self.assertEqual(d["permissionDecision"], "deny")                           # 原有 deny 不变
         self.assertNotIn("无人值守", d["permissionDecisionReason"])
+
+    def test_guard_kb_session_command_position_only(self):
+        """审查第 1 轮：KB_SESSION 下硬拒只看命令名位置，参数 / 引号 / here-doc 里的字样不误伤。"""
+        cwd = "/opt/kb-test-proj"   # 会话工作目录（不在临时目录里；hook 不要求它真实存在）
+
+        def g(cmd):
+            evt = {"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": cwd}
+            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env={"KB_SESSION": "dev"})
+            return json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
+        allowed = [
+            'grep -rnE "git (push|reset --hard|clean)|rm -rf" kblib',
+            "grep -rn 'rm -rf' scripts",
+            'git commit -m "fix: rm stale git push note; deploy.sh docs"',
+            "git commit -q -F - <<'EOF'\nfix: drop rm -rf and git push from docs\nEOF\ngit log -1",
+            "python3 - <<'EOF'\nimport os\nos.system('npm publish')\nEOF",
+            'echo "git push origin main"',
+            "git rm old.txt", "rm -rf build", "rm -f /tmp/x.log", "cd sub && rm a.txt",
+            "find . -name '*.pyc' -delete", "T=$(mktemp -d); cd $T && rm -rf $T",
+            'rm -rf "out dir/cache"', "cat deploy.sh", "grep -n push_notification src/a.kt",
+        ]
+        for cmd in allowed:
+            self.assertIsNone(g(cmd), cmd)
+        denied = [
+            "git push origin main", "git -C /x -c a=b push", "git status; git push", "FOO=1 git push",
+            "git reset --hard HEAD~1", "git clean -fd", "git branch -D feat", "git checkout -- .",
+            "rm -rf /Users/someone/else", "rm -rf ..", "rm -rf .", "rm -rf ~/x", "rm -rf .git", "rm -rf $UNKNOWN/x",
+            'rm -rf "$(cat /tmp/list)"', "echo x | xargs rm -rf /etc", "kubectl apply -f k.yaml", "npm publish",
+            "./deploy.sh prod", "mysql -e 'DROP TABLE t'", "curl -X POST https://api.jpush.cn/v3/push -d '{}'",
+            "cat > /tmp/m.txt <<EOF\nhello\nEOF\ngit push",
+        ]
+        for cmd in denied:
+            self.assertEqual(g(cmd), "deny", cmd)
+
+    def test_guard_replay_tool(self):
+        d = tempfile.mkdtemp()
+        dev = os.path.join(d, "期", "x", "开发会话")
+        os.makedirs(dev)
+        lines = [{"type": "system", "subtype": "init", "cwd": d}]
+        for c in ('grep -rn "git push" .', "rm -rf build", "git push origin main"):
+            lines.append({"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": c}}]}})
+        open(os.path.join(dev, "20261116-100000.jsonl"), "w", encoding="utf-8").write("\n".join(json.dumps(x) for x in lines))
+        rc, out = run(REPO, "scripts/hooks/replay_guard.py", d, "--json")
+        st = json.loads(out)["dev"]
+        self.assertEqual((st["sessions"], st["commands"], st["deny"], st["deny_old"]), (1, 3, 1, 3))
+        self.assertEqual(st["denied"][0]["label"], "git push")
+
+    def test_refresh_check_silent_in_kb_session(self):
+        root = copy_repo()
+        env = {"WORKER_AGENT_TODAY": "2027-03-01", "KB_SESSION": "dev"}
+        run(root, "scripts/rollback.py", "--snapshot", "init", env={"WORKER_AGENT_TODAY": "2026-11-20"})
+        rc, out = run(root, "scripts/refresh_check.py", "--hook", env=env)
+        self.assertEqual((rc, out.strip()), (0, ""))
+        rc, out = run(root, "scripts/refresh_check.py", "--hook", env={"WORKER_AGENT_TODAY": "2027-03-01"})
+        self.assertIn("additionalContext", out)                 # 当天的提醒没被知识库会话占掉
+
+    def test_kb_scenes_top_level_fields_and_lite_list(self):
+        root = copy_repo()
+        p = os.path.join(root, "config", "kb_scenes.json")
+        d = json.load(open(p, encoding="utf-8"))
+        d["档位"] = {"精简": "tiny"}
+        d["每期上限默认"] = "30"
+        d["自动场景模型"] = "gpt"
+        d["产物目录"] = "../outside"
+        del d["场景"]["开发"]["每确认点上限"]
+        d["场景"]["开发·端"]["每确认点上限"] = 9
+        open(p, "w", encoding="utf-8").write(json.dumps(d, ensure_ascii=False))
+        tp = os.path.join(root, "config", "team.yaml")
+        open(tp, "w", encoding="utf-8").write(open(tp, encoding="utf-8").read().replace(
+            "    roles: [product-manager, architect, frontend-engineer, client-engineer, backend-engineer, qa-expert]", "    roles: all", 1))
+        rc, out = run(root, "scripts/validate.py")
+        self.assertNotEqual(rc, 0)
+        for msg in ("档位 必须是", "每期上限默认 必须是 0～200 的整数", "自动场景模型 不合法", "产物目录 必须是",
+                    "场景「开发」 缺少字段 每确认点上限", "场景「开发·端」 每确认点上限 9 大于整轮上限 6",
+                    "tiers.lite.roles 必须是角色列表"):
+            self.assertIn(msg, out)
+
+    def test_build_reads_artifact_dir_from_scenes(self):
+        root = copy_repo()
+        p = os.path.join(root, "config", "kb_scenes.json")
+        d = json.load(open(p, encoding="utf-8"))
+        d["产物目录"] = "其他资料/专家产物"
+        open(p, "w", encoding="utf-8").write(json.dumps(d, ensure_ascii=False))
+        run(root, "scripts/build.py", "--mcp", "none")
+        t = open(os.path.join(root, "agents", "qa-expert.md"), encoding="utf-8").read()
+        self.assertIn("其他产物写 其他资料/专家产物/<阶段序号>-<产物名>.md", t)
+        self.assertNotIn("其他资料/角色产物", t)
 
     def test_kb_scenes_valid_and_bad_role_fails(self):
         scenes = json.load(open(os.path.join(REPO, "config", "kb_scenes.json"), encoding="utf-8"))

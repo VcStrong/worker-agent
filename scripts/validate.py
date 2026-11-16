@@ -237,6 +237,11 @@ def check_team(rep, team, mm):
 # ---------------- kb_scenes.json（REQ-005 / 019） ----------------
 KB_SCENE_REQUIRED = ["触发", "上限", "只读", "标准", "精简"]
 KB_SCENES_EXPECTED = ["管家", "流程设计", "需求", "需求体检", "方案", "开发", "开发·端", "审查·端", "Bug分析", "Bug修复", "跟进", "发布"]
+KB_SCENES_PER_POINT = ["开发", "开发·端"]
+
+
+def _nonneg_int(x):
+    return isinstance(x, int) and not isinstance(x, bool) and x >= 0
 
 
 def check_kb_scenes(rep, mm, team, path=None):
@@ -276,8 +281,28 @@ def check_kb_scenes(rep, mm, team, path=None):
     for r in data.get("只读安全角色") or []:
         if r.endswith("-engineer") or r == "@端":
             rep.err(where, "只读安全角色 不能含工程师（子 agent 可能不继承只读会话的禁用工具）：%s" % r)
-    lite = (team.get("tiers") or {}).get("lite") or {}
-    lite_roles = lite.get("roles") if isinstance(lite.get("roles"), list) else list(known)
+    # 顶层字段（变更 CR-001 契约）
+    tiers = team.get("tiers") or {}
+    tm = data.get("档位")
+    if not isinstance(tm, dict) or set(tm) != {"精简", "标准"}:
+        rep.err(where, "档位 必须是 {\"精简\": …, \"标准\": …}：%r" % (tm,))
+    else:
+        for k, v in tm.items():
+            if v not in tiers:
+                rep.err(where, "档位.%s=%r 不在 team.yaml tiers 里" % (k, v))
+    lim = data.get("每期上限默认")
+    if not _nonneg_int(lim) or lim > 200:
+        rep.err(where, "每期上限默认 必须是 0～200 的整数：%r" % (lim,))
+    if data.get("自动场景模型") not in MODELS:
+        rep.err(where, "自动场景模型 不合法：%r（允许 %s）" % (data.get("自动场景模型"), "/".join(sorted(MODELS))))
+    od = data.get("产物目录")
+    if not isinstance(od, str) or not od.strip() or od.startswith("/") or ".." in od.split("/"):
+        rep.err(where, "产物目录 必须是知识库期目录下的相对路径（如 其他资料/角色产物）：%r" % (od,))
+    lite = tiers.get("lite") or {}
+    lite_roles = lite.get("roles")
+    if not isinstance(lite_roles, list):
+        rep.err("config/team.yaml", "tiers.lite.roles 必须是角色列表（kb_scenes.json 的精简名单按它校验）：%r" % (lite_roles,))
+        lite_roles = []
     lite_ok = set(lite_roles) | {"@端"}
     scenes = data.get("场景")
     if not isinstance(scenes, dict) or not scenes:
@@ -292,8 +317,16 @@ def check_kb_scenes(rep, mm, team, path=None):
             if f not in sc:
                 rep.err(where, "%s 缺少字段 %s" % (ctx, f))
         lim = sc.get("上限")
-        if not isinstance(lim, int) or isinstance(lim, bool) or lim < 0:
+        if not _nonneg_int(lim):
             rep.err(where, "%s 上限必须是非负整数：%r" % (ctx, lim))
+        per = sc.get("每确认点上限")
+        if name in KB_SCENES_PER_POINT and per is None:
+            rep.err(where, "%s 缺少字段 每确认点上限" % ctx)
+        if per is not None:
+            if not _nonneg_int(per):
+                rep.err(where, "%s 每确认点上限必须是非负整数：%r" % (ctx, per))
+            elif _nonneg_int(lim) and per > lim:
+                rep.err(where, "%s 每确认点上限 %d 大于整轮上限 %d" % (ctx, per, lim))
         if not isinstance(sc.get("只读"), bool):
             rep.err(where, "%s 只读 必须是 true / false" % ctx)
         for tier in ("标准", "精简"):

@@ -30,7 +30,7 @@ CONTEXT7_TOOLS = ["resolve-library-id", "get-library-docs", "query-docs"]
 GENERATED_MARK = "generated-by: scripts/build.py"
 STAGE_NAMES = {}
 KB_HOST_MARK = common.KB_HOST_MARK
-KB_ARTIFACT_DIR = "其他资料/角色产物"
+KB_ARTIFACT_DIR_DEFAULT = "其他资料/角色产物"   # kb_scenes.json 读不到「产物目录」时的兜底（validate.py 会报错）
 
 
 def render(template, ctx):
@@ -81,6 +81,14 @@ class Builder:
             STAGE_NAMES[s["no"]] = s["short"]
         self.mcp = self.resolve_mcp(args.mcp, args.project)
         self.version = open(common.p("VERSION"), encoding="utf-8").read().strip() if os.path.exists(common.p("VERSION")) else "0.0.0"
+        try:
+            scenes = common.read_json(common.KB_SCENES, {}) or {}
+        except ValueError:
+            scenes = {}
+        od = scenes.get("产物目录") if isinstance(scenes, dict) else None
+        self.kb_artifact_dir = od.strip().rstrip("/") if isinstance(od, str) and od.strip() else KB_ARTIFACT_DIR_DEFAULT
+        if self.kb_artifact_dir == KB_ARTIFACT_DIR_DEFAULT and od != KB_ARTIFACT_DIR_DEFAULT and not args.quiet:
+            print("⚠️  config/kb_scenes.json 里读不到「产物目录」，宿主模式段落用默认 %s" % KB_ARTIFACT_DIR_DEFAULT)
 
     # ---------- MCP ----------
     def resolve_mcp(self, spec, project):
@@ -238,7 +246,7 @@ class Builder:
             "- 流程命令照旧：不替主会话推进 SDD / dt / pm 流程，不跑 /orchestrate，不再派别的子 agent，不要 run_in_background。",
             "- %s；「引用」里写读过的 kb 文档名，不写 workspace 路径。" % kb_read,
             "- **不写 workspace/、不用 Write 建任何文件**：产物正文（按模板结构，必填节写全）直接作为你的最终回复交回主会话，"
-            "由主会话用 kb 工具落库（PRD / 方案 / Bug 分析走知识库原有工具，其他产物写 %s/<阶段序号>-<产物名>.md）。" % KB_ARTIFACT_DIR,
+            "由主会话用 kb 工具落库（PRD / 方案 / Bug 分析走知识库原有工具，其他产物写 %s/<阶段序号>-<产物名>.md）。" % self.kb_artifact_dir,
             ("- 只有任务说明明确要你在指定仓库里改代码（开发 / Bug 修复）时才用 Edit 改代码；部署、发布、git push、删除一律只出方案。"
              "分析、审查、预审类任务只读不改。") if edit else "- 你不改代码，也不写文件。",
             "- 不调 kb_ask / kb_log / kb_write_doc（你也没有这些工具）：需要用户确认的点写成「待确认：问题 / 选项 / 建议」，"
