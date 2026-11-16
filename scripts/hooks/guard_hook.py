@@ -5,6 +5,8 @@
 - 写本套件安装的 agent / 技能文件（.claude/agents、.claude/skills 下本套件的文件，以及 worker-agent 的 agents/、data/skills/）
   → deny，提示走更新提案（proposals/ + apply_proposal.py）
 - 只读代码 + 写文档的角色（hook 输入带 agent_type 时）写代码文件 → deny
+- 知识库无人值守会话（环境变量 KB_SESSION 非空，REQ-018）：没人能点确认，ask 会挂住或被拒，统一改成 deny，
+  提示改用 kb_ask 请用户确认、由用户执行。知识库自己用 Python 调 git 推送（不经过 Claude 工具）不受影响。
 """
 import json
 import os
@@ -145,7 +147,22 @@ def bash_touches_protected(cmd, cwd, in_subagent):
     return None
 
 
+KB_DENY_HINT = "【无人值守：用 kb_ask 请用户确认，由用户执行】"
+
+
+def kb_session():
+    return bool((os.environ.get("KB_SESSION") or "").strip())
+
+
 def decide(evt):
+    d = _decide(evt)
+    if d and d[0] == "ask" and kb_session():
+        return ("deny", KB_DENY_HINT + "知识库后台会话（KB_SESSION=%s）里没人能当场确认，这一步不执行。"
+                "把要执行的命令和理由写进 kb_ask，由用户本人执行。原因：%s" % (os.environ.get("KB_SESSION", "").strip(), d[1]))
+    return d
+
+
+def _decide(evt):
     tool = evt.get("tool_name", "")
     ti = evt.get("tool_input") or {}
     cwd = evt.get("cwd") or os.getcwd()
