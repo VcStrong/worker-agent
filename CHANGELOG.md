@@ -5,7 +5,7 @@
 - 新增 `config/kb_scenes.json`：知识库后台会话的场景 → 角色表（REQ-005），随安装拷到 `role-agents/config/`。
 - build：每个专家渲染「知识库宿主模式」段落：不写 workspace/、不用 Write，正文作为最终回复交回（REQ-013 / 019）。
 - guard_hook：`KB_SESSION` 存在时 ask → deny，提示改用 kb_ask（REQ-018）。
-- validate：校验 kb_scenes.json 角色名、精简名单、宿主模式段落（REQ-019）。
+- validate：校验 kb_scenes.json（版本=1、12 个场景、字段完整、角色名、精简 ⊆ tiers.lite.roles、只读安全角色不含工程师）和宿主模式段落（REQ-019，变更 CR-001）。
 - 选角评测加 12 条知识库场景题；产品经理补术语「确认点、开发流程、需求变更说明、需求扩展」，体验设计师补「设计稿、缺状态」。
 - install：检查 config 带上 kb_scenes.json，结束时打印知识库角色团可用状态（REQ-019）。
 

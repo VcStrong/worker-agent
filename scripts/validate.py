@@ -236,11 +236,12 @@ def check_team(rep, team, mm):
 
 # ---------------- kb_scenes.json（REQ-005 / 019） ----------------
 KB_SCENE_REQUIRED = ["触发", "上限", "只读", "标准", "精简"]
-KB_SCENES_EXPECTED = ["管家", "流程设计", "需求", "方案", "开发", "开发·端", "审查·端", "Bug分析", "Bug修复", "跟进", "发布"]
+KB_SCENES_EXPECTED = ["管家", "流程设计", "需求", "需求体检", "方案", "开发", "开发·端", "审查·端", "Bug分析", "Bug修复", "跟进", "发布"]
 
 
 def check_kb_scenes(rep, mm, team, path=None):
-    """知识库场景表：JSON 合法、角色名都存在（「@端」按端角色展开）、精简名单只用 team.yaml tiers.lite（含 stand_in 兼任）。"""
+    """知识库场景表（v1 格式，变更 CR-001）：版本=1、12 个场景齐全、字段完整、角色名都存在（含 @端）、
+    精简名单 ⊆ team.yaml tiers.lite.roles、只读安全角色不含工程师。"""
     path = path or common.KB_SCENES
     where = rel(path)
     if not os.path.exists(path):
@@ -252,6 +253,8 @@ def check_kb_scenes(rep, mm, team, path=None):
     except Exception as e:
         rep.err(where, "JSON 解析失败：%s" % e)
         return
+    if data.get("版本") != 1:
+        rep.err(where, "版本 必须是 1（知识库按 v1 格式读，版本不对会整表退回内置兜底）：%r" % data.get("版本"))
     known = {k for k, v in mm["experts"].items() if not v.get("retired")}
     retired = {k for k, v in mm["experts"].items() if v.get("retired")}
 
@@ -270,9 +273,12 @@ def check_kb_scenes(rep, mm, team, path=None):
     for key in ("只读安全角色", "自动场景不派"):
         for r in data.get(key) or []:
             check_role(r, key)
+    for r in data.get("只读安全角色") or []:
+        if r.endswith("-engineer") or r == "@端":
+            rep.err(where, "只读安全角色 不能含工程师（子 agent 可能不继承只读会话的禁用工具）：%s" % r)
     lite = (team.get("tiers") or {}).get("lite") or {}
     lite_roles = lite.get("roles") if isinstance(lite.get("roles"), list) else list(known)
-    lite_ok = set(lite_roles) | set((lite.get("stand_in") or {}).values()) | {"@端"}
+    lite_ok = set(lite_roles) | {"@端"}
     scenes = data.get("场景")
     if not isinstance(scenes, dict) or not scenes:
         rep.err(where, "缺少「场景」")
@@ -288,8 +294,12 @@ def check_kb_scenes(rep, mm, team, path=None):
         lim = sc.get("上限")
         if not isinstance(lim, int) or isinstance(lim, bool) or lim < 0:
             rep.err(where, "%s 上限必须是非负整数：%r" % (ctx, lim))
+        if not isinstance(sc.get("只读"), bool):
+            rep.err(where, "%s 只读 必须是 true / false" % ctx)
         for tier in ("标准", "精简"):
             spec = sc.get(tier) or {}
+            if not isinstance(spec.get("参与", None), list):
+                rep.err(where, "%s.%s 缺少参与名单（没有参与角色写 []）" % (ctx, tier))
             roles = ([spec["主导"]] if spec.get("主导") else []) + list(spec.get("参与") or [])
             if not spec.get("主导"):
                 rep.err(where, "%s.%s 缺少主导角色" % (ctx, tier))

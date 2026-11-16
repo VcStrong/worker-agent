@@ -551,6 +551,18 @@ class KbHost(unittest.TestCase):
         self.assertNotEqual(rc, 0)
         self.assertIn("引用了不存在的角色：devops-guru", out)
         self.assertIn("精简 用了 team.yaml tiers.lite 之外的角色：ux-designer", out)
+        # 版本、缺场景、缺档位名单、只读安全角色含工程师（变更 CR-001）
+        d = json.loads(t)
+        d["版本"] = 2
+        del d["场景"]["需求体检"]
+        del d["场景"]["管家"]["精简"]
+        d["只读安全角色"].append("backend-engineer")
+        open(p, "w", encoding="utf-8").write(json.dumps(d, ensure_ascii=False))
+        rc, out = run(root, "scripts/validate.py")
+        self.assertNotEqual(rc, 0)
+        for msg in ("版本 必须是 1", "缺少场景：需求体检", "场景「管家」 缺少字段 精简", "场景「管家」.精简 缺少主导角色",
+                    "只读安全角色 不能含工程师", "backend-engineer"):
+            self.assertIn(msg, out)
         open(p, "w", encoding="utf-8").write("{bad json")
         rc, out = run(root, "scripts/validate.py")
         self.assertIn("JSON 解析失败", out)
@@ -580,7 +592,8 @@ class KbHost(unittest.TestCase):
         sh = os.path.join(root, "install.sh")
         r = subprocess.run(["bash", sh, "--project", proj, "--mcp", "kb", "--no-hooks"], capture_output=True, text=True)
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertTrue(os.path.exists(os.path.join(proj, ".claude", "role-agents", "config", "kb_scenes.json")))
+        inst = os.path.join(proj, ".claude", "role-agents", "config", "kb_scenes.json")
+        self.assertEqual(open(inst, "rb").read(), open(os.path.join(root, "config", "kb_scenes.json"), "rb").read())
         self.assertIn("知识库角色团：可用（kb MCP ✅，agent 16/16", r.stdout)
         r = subprocess.run(["bash", sh, "--uninstall", "--project", proj], capture_output=True, text=True)
         proj2 = tempfile.mkdtemp()
