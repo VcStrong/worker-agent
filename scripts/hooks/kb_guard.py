@@ -318,23 +318,23 @@ def _old_rules(text, danger):
     return None
 
 
-def analyze(cmd, cwd, danger, remote=False, depth=0):
+def analyze(cmd, cwd, danger, remote=False, depth=0, review=False):
     if depth > MAX_DEPTH:
         return "命令嵌套过深，无法判断"
     text, bodies = split_heredocs(cmd)
     for kind, body in bodies:
         if kind == "shell":
-            lab = analyze(body, cwd, danger, remote, depth + 1)
+            lab = analyze(body, cwd, danger, remote, depth + 1, review)
         elif kind == "sql":
             lab = "删除数据库数据" if SQL_DANGER.search(body) else None
         else:
-            lab = interp_danger(body, cwd, danger, remote, depth + 1)
+            lab = interp_danger(body, cwd, danger, remote, depth + 1, review)
         if lab:
             return lab
     masked, lits, subs = scan(text)
     ctx = Ctx(lits, subs, _vars(text, cwd))
     for s in subs:                                   # $( ) / 反引号里的命令
-        lab = analyze(s, cwd, danger, remote, depth + 1)
+        lab = analyze(s, cwd, danger, remote, depth + 1, review)
         if lab:
             return lab
     d = os.path.abspath(cwd) if cwd else None
@@ -349,14 +349,14 @@ def analyze(cmd, cwd, danger, remote=False, depth=0):
             t = ctx.literal(toks[1]) if len(toks) > 1 else os.path.expanduser("~")
             d = os.path.normpath(os.path.join(d or "/", os.path.expanduser(t))) if t and d is not None else None
             continue
-        lab = _segment(name, toks, d, ctx, danger, remote, depth)
+        lab = _segment(name, toks, d, ctx, danger, remote, depth, review)
         if lab:
             return lab
     return None
 
 
-def _segment(name, toks, d, ctx, danger, remote, depth):
-    nested = lambda c, r=remote: analyze(c, d, danger, r, depth + 1)   # noqa: E731
+def _segment(name, toks, d, ctx, danger, remote, depth, review=False):
+    nested = lambda c, r=remote: analyze(c, d, danger, r, depth + 1, review)   # noqa: E731
     if name in SHELLS:
         p = _payload_after(toks, {"-c"}, ctx)
         if p is not None:
@@ -376,7 +376,7 @@ def _segment(name, toks, d, ctx, danger, remote, depth):
     if name in INTERPS:
         p = _payload_after(toks, {"-c", "-e", "--eval"}, ctx)
         if p is not None:
-            return interp_danger(p, d, danger, remote, depth + 1)
+            return interp_danger(p, d, danger, remote, depth + 1, review)
         return _head(toks, ctx, danger)
     if name in DELETERS or name == "shred" or (name == "find" and ("-delete" in toks or _find_exec_rm(toks))):
         if name == "shred":
@@ -386,7 +386,10 @@ def _segment(name, toks, d, ctx, danger, remote, depth):
             return "删除工作目录以外或算不出目标的文件（%s）" % " ".join(bad[:3])
         return None
     if name == "git":
-        return _head(_git_norm(toks), ctx, danger, fallback=False)
+        norm = _git_norm(toks)
+        if review and not remote and norm[1:2] == ["push"] and gerrit_review_push_ok(toks, ctx):
+            return None   # REQ-018 例外（CR-002）：只推 refs/for 送审
+        return _head(norm, ctx, danger, fallback=False)
     full = " ".join(ctx.raw(t) for t in toks)
     if name in NET_CLIENTS:   # 只有带数据 / POST 的请求才算发推送；GET 文档页不算
         sends = any(t in SEND_FLAGS or t.startswith(("--data", "--json", "--form")) for t in toks[1:]) or \
@@ -407,7 +410,7 @@ SQL_CALL = re.compile(r"\b(execute|executescript|executemany|query|raw|exec_driv
 STR_LIT = re.compile(r"'([^'\\]*(?:\\.[^'\\]*)*)'|\"([^\"\\]*(?:\\.[^\"\\]*)*)\"|`([^`]*)`")
 
 
-def interp_danger(code, cwd, danger, remote=False, depth=0):
+def interp_danger(code, cwd, danger, remote=False, depth=0, review=False):
     """python / node / ruby / perl 代码（-c / -e 参数或 here-doc）：代码里的字符串大多是数据（改文件的脚本常含任意文字），
     只检查真正会执行的：os.system / subprocess / execSync / system … 调用里的命令按 shell 递归分析，
     execute(...) 等里的 DROP / TRUNCATE / DELETE FROM 算删库。"""
@@ -421,10 +424,92 @@ def interp_danger(code, cwd, danger, remote=False, depth=0):
         parts = [a or b or c for a, b, c in STR_LIT.findall(arg)]
         if not parts:
             continue                 # 参数是变量，算不出来：不按命令文本猜
-        lab = analyze(" ".join(parts), cwd, danger, remote, depth + 1)
+        lab = analyze(" ".join(parts), cwd, danger, remote, depth + 1, review)
         if lab:
             return lab
     return None
+
+
+# ---------------- Gerrit 送审例外（REQ-018，变更 CR-002） ----------------
+# 白名单：只认这些 push 选项，其余（含 --force / -f / --force-with-lease / --mirror / --all / --branches / --tags /
+# --follow-tags / --delete / -d / --prune / --receive-pack / --exec / --repo / --recurse-submodules=on-demand）一律不放行。
+PUSH_FLAGS_OK = {"--no-thin", "--thin", "-v", "--verbose", "-q", "--quiet", "-n", "--dry-run", "--porcelain",
+                 "--progress", "--no-progress", "--no-verify", "--verify", "--atomic", "--no-atomic", "-4", "-6",
+                 "--ipv4", "--ipv6", "--no-signed", "--no-recurse-submodules", "--recurse-submodules=check",
+                 "--recurse-submodules=no", "--"}
+PUSH_SHORT_OK = set("vqn46")
+REVIEW_SRC = re.compile(r"^[A-Za-z0-9_.@/\-]+(?:[~^]\d*)*$")
+REVIEW_DST = re.compile(r"^refs/for/([^%:\s]+)(?:%(.*))?$")
+
+
+def _review_opt_bad(opt):
+    """%选项 / -o 值里的单个选项：submit、l= / label= 打分不放行。"""
+    o = opt.strip().lower()
+    return o == "submit" or o.startswith(("submit=", "l=", "label="))
+
+
+def gerrit_review_push_ok(toks, ctx):
+    """toks 为一段 git 命令（git [全局选项] push …）。满足 REQ-018 的 4 个条件返回 True：
+    ①至少一个 refspec，每个都是 <HEAD|分支>:refs/for/<分支>[%选项]，不带前导 +；②没有强推 / --all / --tags /
+    --mirror / --delete / --prune 等（白名单外的选项都不认）；③%选项里没有 submit、l= / label=；
+    ④-o / --push-option 不带 submit、l= / label=。参数含 $( ) 或算不出的变量时不放行。"""
+    vals = []
+    for t in toks:
+        v = ctx.literal(t)
+        if v is None:
+            return False
+        vals.append(v)
+    i = 1
+    while i < len(vals) and vals[i].startswith("-"):      # git 全局选项：-C 放行；-c 不能改 remote / push / alias 配置
+        o = vals[i]
+        if o in ("-c", "-C") and i + 1 < len(vals):
+            if o == "-c" and re.match(r"^\s*(remote|push|alias|url|core\.sshcommand)\b", vals[i + 1], re.I):
+                return False
+            i += 2
+            continue
+        if o.startswith("-c") or o.startswith("--"):
+            return False
+        i += 1
+    if vals[i:i + 1] != ["push"]:
+        return False
+    args, pos, i = vals[i + 1:], [], 0
+    while i < len(args):
+        a = args[i]
+        if re.match(r"^\d*[<>]", a):                     # 重定向（2>&1 被拆段后剩 "2>"、> /dev/null、2>/dev/null）不是参数
+            i += 2 if re.match(r"^\d*[<>]+&?$", a) else 1
+            continue
+        if a.startswith("-") and a != "-" and not pos:
+            if a in ("-o", "--push-option"):
+                if i + 1 >= len(args) or any(_review_opt_bad(x) for x in args[i + 1].split(",")):
+                    return False
+                i += 2
+                continue
+            if a.startswith("--push-option=") or (a.startswith("-o") and not a.startswith("--")):
+                val = a.split("=", 1)[1] if a.startswith("--") else a[2:]
+                if any(_review_opt_bad(x) for x in val.split(",")):
+                    return False
+                i += 1
+                continue
+            if a in PUSH_FLAGS_OK or (re.match(r"^-[a-z0-9]+$", a) and set(a[1:]) <= PUSH_SHORT_OK):
+                i += 1
+                continue
+            return False
+        if a.startswith("-"):
+            return False                                  # 位置参数之后又出现选项，也不认
+        pos.append(a)
+        i += 1
+    if len(pos) < 2:                                      # 只有远端或什么都没有：按 push.default 推，不放行
+        return False
+    for spec in pos[1:]:
+        if spec.startswith("+") or spec.count(":") != 1:
+            return False
+        src, dst = spec.split(":")
+        m = REVIEW_DST.match(dst)
+        if not src or not REVIEW_SRC.match(src) or not m:
+            return False
+        if m.group(2) is not None and any(_review_opt_bad(x) for x in m.group(2).split(",")):
+            return False
+    return True
 
 
 def _find_exec_rm(toks):
@@ -442,6 +527,8 @@ def _head(toks, ctx, danger, fallback=True):
     return None
 
 
-def kb_danger(cmd, cwd, danger):
-    """知识库会话里要硬拒的操作，返回标签；放行返回 None。danger 为 guard_hook.DANGER（原有 ask 规则）。"""
-    return analyze(cmd, cwd, danger)
+def kb_danger(cmd, cwd, danger, review=False):
+    """知识库会话里要硬拒的操作，返回标签；放行返回 None。danger 为 guard_hook.DANGER（原有 ask 规则）。
+    review=True（只在 KB_SESSION=dev / px:* 时由 guard_hook 传入）时，满足 gerrit_review_push_ok 的 git push 段放行，
+    其余段照常检查——整条命令里每个 git push 段都得满足条件，有一段不满足就仍返回「git push」。"""
+    return analyze(cmd, cwd, danger, review=review)

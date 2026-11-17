@@ -11,6 +11,8 @@
   引号、here-doc、只读命令参数里的字样不算；git rm、删除会话目录或临时目录里的文件放行；
   推送、部署、发布、发推送、删库、丢弃未提交改动、删工作目录以外或算不出目标的文件拒绝；
   其余认不出的命令段只要原有 DANGER 规则命中（原来会 ask）仍然拒绝。
+  例外（变更 CR-002）：KB_SESSION=dev 或 px:* 时，整条命令里每个 git push 段都只推 refs/for/<分支> 送审
+  （无 + 前缀、无强推 / --all / --tags / --mirror / --delete / --prune、%选项和 -o 里无 submit / l= / label=）时放行。
 """
 import json
 import os
@@ -48,6 +50,19 @@ DANGER = [
 def kb_danger(cmd, cwd):
     """知识库会话里要硬拒的操作，返回标签；放行返回 None。认不出的命令按上面 DANGER（原有 ask 规则）兜底。"""
     return kb_guard.kb_danger(cmd, cwd, DANGER)
+
+
+def gerrit_session():
+    """只有 SDD 开发会话（KB_SESSION=dev）和跟进会话（px:*）适用 Gerrit 送审例外（REQ-018，变更 CR-002）。"""
+    s = (os.environ.get("KB_SESSION") or "").strip()
+    return s == "dev" or s.startswith("px:")
+
+
+def kb_gerrit_review_push(cmd, cwd):
+    """整条命令按 kb_danger 同样的方式拆段（sh -c / eval / $( ) / 前缀 / 引号 / git -C、-c 全局选项），
+    其中每个 git push 段都只推 refs/for/<分支> 送审（REQ-018 的 4 个条件）、其余段也没有要拒的操作时返回 True。
+    只在 gerrit_session() 为真时调用；ssh 远程命令里的 push 不放行。"""
+    return kb_guard.kb_danger(cmd, cwd, DANGER, review=True) is None
 
 SUITE_ROOTS = [os.path.join(ROOT, "agents"), os.path.join(ROOT, "data", "skills"), os.path.join(ROOT, "skills"),
                os.path.join(ROOT, "local", "skills")]
@@ -173,6 +188,8 @@ def decide(evt):
         label = kb_danger(cmd, evt.get("cwd") or os.getcwd())
         if not label:
             return None   # 危险字样只在引号 / here-doc / 只读命令参数里，或是会话目录内的日常删除：放行
+        if label == "git push" and gerrit_session() and kb_gerrit_review_push(cmd, evt.get("cwd") or os.getcwd()):
+            return None   # SDD 开发 / 跟进会话推 Gerrit 送审（refs/for，需人工 +2 才合入）：放行（变更 CR-002）
         return ("deny", KB_DENY_HINT + "知识库后台会话（KB_SESSION=%s）里没人能当场确认，这一步不执行。"
                 "把要执行的命令和理由写进 kb_ask，由用户本人执行。原因：【角色 agent 安全边界】检测到「%s」类操作，"
                 "需用户确认后才执行。命令：%s" % (os.environ.get("KB_SESSION", "").strip(), label, cmd[:200]))

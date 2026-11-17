@@ -600,17 +600,75 @@ class KbHost(unittest.TestCase):
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("说明 rm -rf 与 git push 的风险", r.stdout)
 
+    def test_guard_gerrit_review_push_exception(self):
+        """REQ-018 变更 CR-002：KB_SESSION=dev / px:* 只放行推 refs/for/<分支> 送审，其余 push 照旧 deny。"""
+        cwd = "/opt/kb-test-proj"
+
+        def g(cmd, session="dev"):
+            evt = {"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": cwd}
+            env = {"KB_SESSION": session} if session is not None else None
+            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=env)
+            return json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
+        allowed = [
+            ("git push --no-thin origin HEAD:refs/for/feature/x", "dev"),
+            ("git -C /opt/repo push --no-thin origin HEAD:refs/for/feature/x", "dev"),
+            ("cd /opt/repo && git push --no-thin origin HEAD:refs/for/feature/x", "dev"),
+            ("git push origin HEAD:refs/for/main%topic=abc,r=someone", "px:xxx"),
+            ("git push origin HEAD:refs/for/main%topic=abc,r=someone", "px:demo"),
+            ("git push -o topic=abc origin dev_branch:refs/for/dev_branch", "dev"),
+            ("git push --push-option=r=a@b.c origin HEAD:refs/for/x", "dev"),
+            ("git push origin HEAD:refs/for/x HEAD~1:refs/for/y", "dev"),          # 多 refspec 都是送审
+            ('git push origin "HEAD:refs/for/feature/x"', "dev"),
+            ("B=feature/x; git push origin HEAD:refs/for/$B", "dev"),
+            ("git status && git push -v origin HEAD:refs/for/x && git log -1", "dev"),
+            ("bash -c 'git push origin HEAD:refs/for/x'", "dev"),
+            ('git push --no-thin origin HEAD:refs/for/x 2>&1 | grep -E "http|SUCCESS|error|rejected"', "dev"),
+            ("git push origin HEAD:refs/for/x > /tmp/p.log 2>/dev/null", "px:x"),
+        ]
+        for cmd, s in allowed:
+            self.assertIsNone(g(cmd, s), "%s @ %s" % (cmd, s))
+        denied = [
+            "git push origin HEAD:refs/for/x%submit", "git push origin HEAD:refs/for/x%topic=a,submit",
+            "git push -o submit origin HEAD:refs/for/x", "git push --push-option=submit origin HEAD:refs/for/x",
+            "git push -o l=Code-Review+2 origin HEAD:refs/for/x",
+            "git push origin HEAD:refs/for/x%l=Code-Review+2", "git push origin HEAD:refs/for/x%label=Verified+1",
+            "git push -f origin HEAD:refs/for/x", "git push --force origin HEAD:refs/for/x",
+            "git push --force-with-lease origin HEAD:refs/for/x", "git push -vf origin HEAD:refs/for/x",
+            "git push origin +HEAD:refs/for/x",
+            "git push origin HEAD:refs/for/x HEAD:refs/heads/main",               # 多 refspec 有一个不是送审
+            "git push origin", "git push", "git push origin main", "git push origin HEAD:main",
+            "git push origin :refs/for/x", "git push --all origin", "git push --tags origin HEAD:refs/for/x",
+            "git push --mirror origin", "git push --delete origin HEAD:refs/for/x", "git push -d origin x",
+            "git push --prune origin HEAD:refs/for/x", "git push origin HEAD:refs/for/$(cat b)",
+            "git push origin HEAD:refs/for/$UNKNOWN", "git push --receive-pack=x origin HEAD:refs/for/x",
+            "git -c remote.origin.mirror=true push origin HEAD:refs/for/x",
+            # 一条命令里送审 + 别的推送 / 危险操作：有一段不满足就 deny
+            "git push origin HEAD:refs/for/x && git push origin main",
+            "git push origin HEAD:refs/for/x; git reset --hard", "git reset --hard", "git checkout -- .",
+            "ssh host 'git push origin HEAD:refs/for/x'", "git send-pack origin HEAD:refs/for/x",
+        ]
+        for cmd in denied:
+            self.assertEqual(g(cmd), "deny", cmd)
+        for s in ("end:Android", "an:xxx", "stack:xxx", "steward", "flow", "launch:需求:x", "scaffold:Web", "devx", "px"):
+            self.assertEqual(g("git push origin HEAD:refs/for/x", s), "deny", s)
+        # 无 KB_SESSION：照旧 ask（含 refs/for 推送）
+        for cmd in ("git push origin HEAD:refs/for/x", "git push --no-thin origin HEAD:refs/for/feature/x", "git push origin main"):
+            self.assertEqual(g(cmd, None), "ask", cmd)
+        d = run(REPO, "scripts/hooks/guard_hook.py", env={"KB_SESSION": "dev"}, stdin=json.dumps(
+            {"tool_name": "Bash", "tool_input": {"command": "git push origin main"}, "cwd": cwd}))[1]
+        self.assertIn("无人值守：用 kb_ask 请用户确认，由用户执行", d)
+
     def test_guard_replay_tool(self):
         d = tempfile.mkdtemp()
         dev = os.path.join(d, "期", "x", "开发会话")
         os.makedirs(dev)
         lines = [{"type": "system", "subtype": "init", "cwd": d}]
-        for c in ('grep -rn "git push" .', "rm -rf build", "git push origin main"):
+        for c in ('grep -rn "git push" .', "rm -rf build", "git push origin main", "git push --no-thin origin HEAD:refs/for/x"):
             lines.append({"type": "assistant", "message": {"content": [{"type": "tool_use", "name": "Bash", "input": {"command": c}}]}})
         open(os.path.join(dev, "20261116-100000.jsonl"), "w", encoding="utf-8").write("\n".join(json.dumps(x) for x in lines))
         rc, out = run(REPO, "scripts/hooks/replay_guard.py", d, "--json")
         st = json.loads(out)["dev"]
-        self.assertEqual((st["sessions"], st["commands"], st["deny"], st["deny_old"]), (1, 3, 1, 3))
+        self.assertEqual((st["sessions"], st["commands"], st["deny"], st["deny_old"]), (1, 4, 1, 4))  # refs/for 送审放行（CR-002）
         self.assertEqual(st["denied"][0]["label"], "git push")
 
     def test_refresh_check_silent_in_kb_session(self):
