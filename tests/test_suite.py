@@ -300,8 +300,14 @@ class Hooks(unittest.TestCase):
         def g(evt):
             rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt))
             return json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
-        for cmd in ("git push origin main", "rm -rf build", "kubectl apply -f x.yaml", "npm publish", "mysql -e 'DROP TABLE t'"):
+        for cmd in ("kubectl apply -f x.yaml", "npm publish", "mysql -e 'DROP TABLE t'", "git push -f origin main",
+                    "git push origin +main", "git push --force-with-lease", "git push origin --delete x", "sudo rm -rf /x",
+                    "rm -rf ~", "rm -rf /", "git remote add o x"):
             self.assertEqual(g({"tool_name": "Bash", "tool_input": {"command": cmd}}), "ask", cmd)
+        # 常用命令（用户授权直接放行）：普通推送、删文件、丢弃改动
+        for cmd in ("git push origin main", "rm -rf build", "git reset --hard HEAD", "git clean -fd", "git branch -D x",
+                    "find . -name '*.tmp' -delete", "rmdir out"):
+            self.assertIsNone(g({"tool_name": "Bash", "tool_input": {"command": cmd}}), cmd)
         self.assertIsNone(g({"tool_name": "Bash", "tool_input": {"command": "npm test"}}))
         self.assertEqual(g({"tool_name": "Write", "tool_input": {"file_path": os.path.join(REPO, "data/skills/frontend/vite.md")}}), "deny")
         self.assertEqual(g({"tool_name": "Edit", "agent_type": "product-manager", "tool_input": {"file_path": "/p/src/a.ts"}}), "deny")
@@ -520,19 +526,21 @@ class KbHost(unittest.TestCase):
             rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=env)
             return json.loads(out)["hookSpecificOutput"] if out.strip() else None
         push = {"tool_name": "Bash", "tool_input": {"command": "git push origin main"}}
-        for cmd in ("git push origin main", "rm -rf /opt/build", "npm publish", "kubectl apply -f x.yaml"):
+        for cmd in ("git push -f origin main", "sudo rm -rf /opt/build", "npm publish", "kubectl apply -f x.yaml"):
             d = g({"tool_name": "Bash", "tool_input": {"command": cmd}}, {"KB_SESSION": "steward"})
             self.assertEqual(d["permissionDecision"], "deny", cmd)
             self.assertIn("无人值守：用 kb_ask 请用户确认，由用户执行", d["permissionDecisionReason"])
-        self.assertEqual(g(push)["permissionDecision"], "ask")                       # 不在知识库会话：照旧 ask
-        self.assertEqual(g(push, {"KB_SESSION": "  "})["permissionDecision"], "ask")  # 空值不算
+        self.assertIsNone(g(push))                                                   # 不在知识库会话：常用命令放行
+        for cmd in ("git push origin main", "rm -rf /opt/build", "git reset --hard HEAD"):  # 知识库会话：常用命令同样放行（免打扰不被拒）
+            self.assertIsNone(g({"tool_name": "Bash", "tool_input": {"command": cmd}}, {"KB_SESSION": "steward"}), cmd)
+        self.assertIsNone(g(push, {"KB_SESSION": "  "}))                             # 空值不算
         self.assertIsNone(g({"tool_name": "Bash", "tool_input": {"command": "npm test"}}, {"KB_SESSION": "flow"}))
         d = g({"tool_name": "Write", "tool_input": {"file_path": os.path.join(REPO, "data/skills/frontend/vite.md")}}, {"KB_SESSION": "flow"})
         self.assertEqual(d["permissionDecision"], "deny")                           # 原有 deny 不变
         self.assertNotIn("无人值守", d["permissionDecisionReason"])
 
     def test_guard_kb_session_command_position_only(self):
-        """审查第 1 轮：KB_SESSION 下硬拒只看命令名位置，参数 / 引号 / here-doc 里的字样不误伤。"""
+        """KB_SESSION 下：常用命令放行；危险操作硬拒只看命令名位置，参数 / 引号 / here-doc 里的字样不误伤。"""
         cwd = "/opt/kb-test-proj"   # 会话工作目录（不在临时目录里；hook 不要求它真实存在）
 
         def g(cmd):
@@ -555,26 +563,26 @@ class KbHost(unittest.TestCase):
         ]
         for cmd in allowed:
             self.assertIsNone(g(cmd), cmd)
-        denied = [
+        # 常用命令（推送、删文件、丢弃改动）和交互会话一样放行，包括包在 sh -c / eval / ssh / 前缀里的写法
+        common = [
             "git push origin main", "git -C /x -c a=b push", "git status; git push", "FOO=1 git push",
             "git reset --hard HEAD~1", "git clean -fd", "git branch -D feat", "git checkout -- .",
-            "rm -rf /Users/someone/else", "rm -rf ..", "rm -rf .", "rm -rf ~/x", "rm -rf .git", "rm -rf $UNKNOWN/x",
-            'rm -rf "$(cat /tmp/list)"', "echo x | xargs rm -rf /etc", "kubectl apply -f k.yaml", "npm publish",
-            "./deploy.sh prod", "mysql -e 'DROP TABLE t'", "curl -X POST https://api.jpush.cn/v3/push -d '{}'",
-            "cat > /tmp/m.txt <<EOF\nhello\nEOF\ngit push",
-            # 审查第 2 轮：原来 ask、第 1 轮漏掉的写法
-            "bash -c 'git push origin main'", 'sh -c "git push"', "eval 'git push'", "timeout 60 git push",
-            "sudo -u root git push", "env -i git push", "\\git push", '"git" push', "nice -n 5 git push",
-            "bash -lc 'cd /tmp && git push'", "xargs -I{} sh -c 'git push {}' < list", "bash <<'EOF'\ngit push\nEOF",
-            "ssh host 'rm -rf /'", "rmdir /Users/someone/dir", "find /etc -name x -exec rm {} \\;",
+            "rm -rf /Users/someone/else", "rm -rf ..", "rm -rf .git", "rm -rf $UNKNOWN/x", "rmdir /Users/someone/dir",
+            "cat > /tmp/m.txt <<EOF\nhello\nEOF\ngit push", "bash -c 'git push origin main'", 'sh -c "git push"',
+            "eval 'git push'", "timeout 60 git push", "env -i git push", "bash <<'EOF'\ngit push\nEOF",
+            "git branch --delete --force feat", "git checkout -f", "git switch --discard-changes main",
+            "git push origin a && git push origin b",
+        ]
+        for cmd in common:
+            self.assertIsNone(g(cmd), cmd)
+        denied = [
+            "git push -f origin main", "git push origin +main", "git push --mirror origin", "git push origin :feat",
+            "sudo rm -rf /opt/x", "rm -rf ~", "rm -rf /", "ssh host 'rm -rf /'",
+            "kubectl apply -f k.yaml", "npm publish", "./deploy.sh prod", "mysql -e 'DROP TABLE t'",
+            "curl -X POST https://api.jpush.cn/v3/push -d '{}'", "git push origin main && npm publish",
             'python3 -c "import sqlite3; c.execute(\'DROP TABLE t\')"',
             "python3 - <<'EOF'\nimport os\nos.system('npm publish')\nEOF",
-            "python3 - <<'EOF'\nimport subprocess\nsubprocess.run(['git', 'push', 'origin'])\nEOF",
-            "node -e \"require('child_process').execSync('git push')\"",
             "curl -X POST https://x.com/notification/send -d '{}'",
-            "git branch --delete --force feat", "git checkout -f", "git switch --discard-changes main",
-            "rm -rf $(git rev-parse --show-toplevel)/.git", "rm -rf $(pwd)/../other", "rm -rf `dirname $PWD`",
-            'rm -rf "$(pwd)"/..',
         ]
         for cmd in denied:
             self.assertEqual(g(cmd), "deny", cmd)
@@ -588,7 +596,7 @@ class KbHost(unittest.TestCase):
         step3 = "echo '- 补充说明' >> NOTES.md && git add -A && git -c user.name=t -c user.email=t@t commit -q -m \"docs: 说明 rm -rf 与 git push 的风险\" && git log --oneline -1"
         steps = [("git status --short", None), ('grep -rn "git push\\|rm -rf" README.md || true', None), (step3, None),
                  ("mkdir -p build && touch build/a.o && rm -rf build && echo removed-build", None),
-                 ("git push origin main", "deny"), ("git reset --hard HEAD", "deny")]
+                 ("git push origin main", None), ("git reset --hard HEAD", None), ("git push -f origin main", "deny")]
         sessions = ["dev", "end:Android", "an:demo", "stack:demo", "launch:需求:demo", "scaffold:Web", "px:demo", "flow", "steward"]
         for kind in sessions:
             for cmd, want in steps:
@@ -627,35 +635,28 @@ class KbHost(unittest.TestCase):
         ]
         for cmd, s in allowed:
             self.assertIsNone(g(cmd, s), "%s @ %s" % (cmd, s))
+        # 普通推送是常用命令：任何知识库会话都放行（含 %submit、打分、推到分支）
+        for cmd in ("git push origin HEAD:refs/for/x%submit", "git push -o l=Code-Review+2 origin HEAD:refs/for/x",
+                    "git push origin HEAD:refs/for/x HEAD:refs/heads/main", "git push origin main", "git push",
+                    "git push origin HEAD:refs/for/x; git reset --hard", "ssh host 'git push origin HEAD:refs/for/x'"):
+            self.assertIsNone(g(cmd), cmd)
+        for s in ("end:Android", "an:xxx", "stack:xxx", "steward", "flow", "launch:需求:x", "scaffold:Web", "devx", "px"):
+            self.assertIsNone(g("git push origin main", s), s)
+        # 强推、+ 推送、镜像、删远端分支、夹带发布：照旧 deny
         denied = [
-            "git push origin HEAD:refs/for/x%submit", "git push origin HEAD:refs/for/x%topic=a,submit",
-            "git push -o submit origin HEAD:refs/for/x", "git push --push-option=submit origin HEAD:refs/for/x",
-            "git push -o l=Code-Review+2 origin HEAD:refs/for/x",
-            "git push origin HEAD:refs/for/x%l=Code-Review+2", "git push origin HEAD:refs/for/x%label=Verified+1",
             "git push -f origin HEAD:refs/for/x", "git push --force origin HEAD:refs/for/x",
             "git push --force-with-lease origin HEAD:refs/for/x", "git push -vf origin HEAD:refs/for/x",
-            "git push origin +HEAD:refs/for/x",
-            "git push origin HEAD:refs/for/x HEAD:refs/heads/main",               # 多 refspec 有一个不是送审
-            "git push origin", "git push", "git push origin main", "git push origin HEAD:main",
-            "git push origin :refs/for/x", "git push --all origin", "git push --tags origin HEAD:refs/for/x",
-            "git push --mirror origin", "git push --delete origin HEAD:refs/for/x", "git push -d origin x",
-            "git push --prune origin HEAD:refs/for/x", "git push origin HEAD:refs/for/$(cat b)",
-            "git push origin HEAD:refs/for/$UNKNOWN", "git push --receive-pack=x origin HEAD:refs/for/x",
-            "git -c remote.origin.mirror=true push origin HEAD:refs/for/x",
-            # 一条命令里送审 + 别的推送 / 危险操作：有一段不满足就 deny
-            "git push origin HEAD:refs/for/x && git push origin main",
-            "git push origin HEAD:refs/for/x; git reset --hard", "git reset --hard", "git checkout -- .",
-            "ssh host 'git push origin HEAD:refs/for/x'", "git send-pack origin HEAD:refs/for/x",
+            "git push origin +HEAD:refs/for/x", "git push --mirror origin", "git push --delete origin HEAD:refs/for/x",
+            "git push -d origin x", "git push origin :refs/for/x", "git push origin HEAD:refs/for/x && npm publish",
         ]
         for cmd in denied:
             self.assertEqual(g(cmd), "deny", cmd)
-        for s in ("end:Android", "an:xxx", "stack:xxx", "steward", "flow", "launch:需求:x", "scaffold:Web", "devx", "px"):
-            self.assertEqual(g("git push origin HEAD:refs/for/x", s), "deny", s)
-        # 无 KB_SESSION：照旧 ask（含 refs/for 推送）
+        # 无 KB_SESSION：普通推送放行，强推照旧 ask
         for cmd in ("git push origin HEAD:refs/for/x", "git push --no-thin origin HEAD:refs/for/feature/x", "git push origin main"):
-            self.assertEqual(g(cmd, None), "ask", cmd)
+            self.assertIsNone(g(cmd, None), cmd)
+        self.assertEqual(g("git push -f origin main", None), "ask")
         d = run(REPO, "scripts/hooks/guard_hook.py", env={"KB_SESSION": "dev"}, stdin=json.dumps(
-            {"tool_name": "Bash", "tool_input": {"command": "git push origin main"}, "cwd": cwd}))[1]
+            {"tool_name": "Bash", "tool_input": {"command": "git push -f origin main"}, "cwd": cwd}))[1]
         self.assertIn("无人值守：用 kb_ask 请用户确认，由用户执行", d)
 
     def test_guard_replay_tool(self):
@@ -668,8 +669,7 @@ class KbHost(unittest.TestCase):
         open(os.path.join(dev, "20261116-100000.jsonl"), "w", encoding="utf-8").write("\n".join(json.dumps(x) for x in lines))
         rc, out = run(REPO, "scripts/hooks/replay_guard.py", d, "--json")
         st = json.loads(out)["dev"]
-        self.assertEqual((st["sessions"], st["commands"], st["deny"], st["deny_old"]), (1, 4, 1, 4))  # refs/for 送审放行（CR-002）
-        self.assertEqual(st["denied"][0]["label"], "git push")
+        self.assertEqual((st["sessions"], st["commands"], st["deny"], st["deny_old"]), (1, 4, 0, 4))  # 常用命令放行，旧规则全拒
 
     def test_refresh_check_silent_in_kb_session(self):
         root = copy_repo()

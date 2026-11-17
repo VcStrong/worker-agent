@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
 """REQ-011：安全边界 hook（PreToolUse，matcher: Bash|Write|Edit|MultiEdit|NotebookEdit）。纯本地，不调用模型。
 
-- 部署、发布、git push、发推送、删除文件 / 数据库类命令 → permissionDecision=ask：停下让用户确认后才执行
+- 部署、发布、强推、发推送、删库类命令 → permissionDecision=ask：停下让用户确认后才执行。
+  常用命令（普通 git push、rm / find -delete、git reset --hard / clean -f / branch -D）用户已授权，直接放行（COMMON_ALLOW），
+  其中强推、+ 推送、删远端分支、sudo 删除、删 / 或 ~ 仍 ask（common_risky）。
 - 写本套件安装的 agent / 技能文件（.claude/agents、.claude/skills 下本套件的文件，以及 worker-agent 的 agents/、data/skills/）
   → deny，提示走更新提案（proposals/ + apply_proposal.py）
 - 只读代码 + 写文档的角色（hook 输入带 agent_type 时）写代码文件 → deny
-- 知识库无人值守会话（环境变量 KB_SESSION 非空，REQ-018）：没人能点确认，ask 会挂住或被拒，改成 deny，
+- 知识库无人值守会话（环境变量 KB_SESSION 非空，REQ-018）：交互会话放行的常用命令同样放行（免打扰不被卡住）；
+  交互会话会 ask 的命令没人能点确认，ask 会挂住或被拒，改成 deny，
   提示改用 kb_ask 请用户确认、由用户执行。知识库自己用 Python 调 git 推送（不经过 Claude 工具）不受影响。
   deny 是硬拒，所以这时改用 kb_guard.kb_danger 逐段分析（拆 sh -c / eval / ssh / $( ) / 前缀，剥引号和 here-doc 数据）：
   引号、here-doc、只读命令参数里的字样不算；git rm、删除会话目录或临时目录里的文件放行；
@@ -63,6 +66,26 @@ def kb_gerrit_review_push(cmd, cwd):
     其中每个 git push 段都只推 refs/for/<分支> 送审（REQ-018 的 4 个条件）、其余段也没有要拒的操作时返回 True。
     只在 gerrit_session() 为真时调用；ssh 远程命令里的 push 不放行。"""
     return kb_guard.kb_danger(cmd, cwd, DANGER, review=True) is None
+
+# 日常开发常用、用户已授权直接放行的类别（交互会话不再弹确认；知识库无人值守会话仍走 kb_danger，不受影响）。
+# 其中的危险写法由 common_risky 单独拦下，照旧弹确认。
+COMMON_ALLOW = {"git push", "删除文件", "丢弃代码 / 删除分支"}
+FORCE_PUSH = re.compile(r"\bgit\b[^;&|\n]*\bpush\b[^;&|\n]*(\s--force(-with-lease)?\b|\s-[a-z]*f[a-z]*\b|\s\+\S|\s--mirror\b|\s--delete\b|\s-d\b|\s:\S)")
+SUDO_RM = re.compile(r"\bsudo\s+(rm|rmdir|find|shred)\b")
+GIT_PUSH = re.compile(r"\bgit\b[^;&|\n]*?\bpush\b")
+RM_ROOT = re.compile(r"\brm\s+(-[a-z]+\s+)*(/|~|~/|\$home|\$\{home\}|/\*|~/\*)(\s|$|[;&|'\"])")
+
+
+def common_risky(low):
+    """常用类别里仍要确认的写法：强推 / 删远端分支、sudo 删除、删根目录或家目录。"""
+    if FORCE_PUSH.search(low):
+        return "强推 / 删除远端分支"
+    if SUDO_RM.search(low):
+        return "sudo 删除文件"
+    if RM_ROOT.search(low):
+        return "删除根目录或家目录"
+    return None
+
 
 SUITE_ROOTS = [os.path.join(ROOT, "agents"), os.path.join(ROOT, "data", "skills"), os.path.join(ROOT, "skills"),
                os.path.join(ROOT, "local", "skills")]
@@ -183,7 +206,9 @@ def kb_session():
 
 def decide(evt):
     d = _decide(evt)
-    if kb_session() and evt.get("tool_name") == "Bash" and (d is None or d[0] == "ask"):
+    # 知识库会话：交互会话放行的常用命令（COMMON_ALLOW）同样放行，免打扰时不被拒、不卡住；
+    # 交互会话会 ask 的（强推、sudo 删除、部署发布、删库…）才交给 kb_danger 细判，认定危险就拒绝。
+    if kb_session() and evt.get("tool_name") == "Bash" and d is not None and d[0] == "ask":
         cmd = (evt.get("tool_input") or {}).get("command", "")
         label = kb_danger(cmd, evt.get("cwd") or os.getcwd())
         if not label:
@@ -196,7 +221,7 @@ def decide(evt):
     return d
 
 
-def _decide(evt):
+def _decide(evt, allow_common=True):
     tool = evt.get("tool_name", "")
     ti = evt.get("tool_input") or {}
     cwd = evt.get("cwd") or os.getcwd()
@@ -209,8 +234,14 @@ def _decide(evt):
             return ("deny", "【角色 agent 安全边界】子 agent 不能运行写技能层的脚本（apply_proposal / build / rollback / install）。技能更新写成提案，由用户在主会话拍板后执行。")
         if hit:
             return ("deny", "【角色 agent 安全边界】不能用命令行改 agent 或技能包（命中 %s）。请把改动写成更新提案放进 %s/proposals/，用户拍板后由 apply_proposal.py 应用。" % (hit, ROOT))
+        risky = common_risky(low) if allow_common else None
+        if risky:
+            return ("ask", "【角色 agent 安全边界】检测到「%s」：需用户确认后才执行。命令：%s" % (risky, cmd[:200]))
+        no_git_push = GIT_PUSH.sub("git-p", low)   # 「发推送」规则别把 git push 的 push 字样当成发推送
         for pat, label in DANGER:
-            if re.search(pat, low):
+            if allow_common and label in COMMON_ALLOW:
+                continue
+            if re.search(pat, no_git_push if allow_common and label == "发推送" else low):
                 return ("ask", "【角色 agent 安全边界】检测到「%s」类操作：任何角色都只出方案，需用户确认后才执行。命令：%s" % (label, cmd[:200]))
         return None
     path = ti.get("file_path") or ti.get("notebook_path") or ""

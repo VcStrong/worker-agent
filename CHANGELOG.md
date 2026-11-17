@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 未发布：常用命令不再弹确认（2026-11-17）
+
+- guard_hook：交互会话里普通 `git push`、`rm` / `rmdir` / `find -delete`、`git reset --hard` / `clean -f` / `branch -D` 直接放行（`COMMON_ALLOW`）；强推、`+` 推送、删远端分支、`sudo` 删除、删 `/` 或 `~` 仍弹确认；部署、发布、K8s、删库、发推送、添加远端不变。知识库无人值守会话（`KB_SESSION`）同样放行这些常用命令（免打扰时不被拒），只对交互会话也会 ask 的命令按 kb_guard 细判后拒绝。
+- 「发推送」规则不再把 `git push` 里的 push 字样当成发推送（连推两个分支、`--push-option` 不再误拦）。
+
 ## 未发布：角色团接入知识库（2026-11-16）
 
 - 新增 `config/kb_scenes.json`：知识库后台会话的场景 → 角色表（REQ-005），随安装拷到 `role-agents/config/`。

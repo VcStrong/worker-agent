@@ -71,7 +71,7 @@ def commands(path):
 
 def old_decide(evt):
     """第 1 轮的行为：原有判断里的 ask 一律改 deny（对照用）。"""
-    d = guard_hook._decide(evt)
+    d = guard_hook._decide(evt, allow_common=False)   # 对照用最初的规则，不算 COMMON_ALLOW 放行
     return ("deny", d[1]) if d and d[0] == "ask" else d
 
 
