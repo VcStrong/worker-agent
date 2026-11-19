@@ -6,7 +6,9 @@
 - `rejected.jsonl`：被驳回的条目（以后不重复提出，除非有新证据）
 - `apply.log`：应用记录
 
-**所有条目都要用户拍板后才由 `scripts/apply_proposal.py` 应用**（例外：`config/run.yaml` 的 `auto_apply_trivial: true` 时，标 `trivial: true` 的 update_as_of / add_source / fix_typo 可自动应用并记日志）。
+- `summaries/<YYYY-MM-DD>.md`：每次自动更新的摘要（改了哪些技能、来源链接、大改动、回滚命令）
+
+**默认（`config/run.yaml` 的 `skills_refresh_mode: auto`）情报员提案由 `scripts/auto_refresh.py` 调 `apply_proposal.py --auto` 自动应用**：status 为「待拍板」且无可疑来源、格式正确、不是重复驳回的条目都会应用（含废弃、新增 / 下线角色），「待核实」的不应用，回归退化的逐条剔除并标「自动应用失败」。`ask` 模式下所有条目要用户拍板（例外：`auto_apply_trivial: true` 时，标 `trivial: true` 的 update_as_of / add_source / fix_typo 自动应用）。复盘经验（lessons）仍由用户拍板。
 
 ## 条目格式
 

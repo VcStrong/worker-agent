@@ -4,7 +4,7 @@ description: 总控（兼项目经理 / Scrum Master）。接到任何互联网�
 tools: Agent, Task, Read, Grep, Glob, Write, Edit, Bash, Skill, mcp__kb__kb_search, mcp__kb__kb_read, mcp__kb__kb_iteration, mcp__kb__kb_repo_read, mcp__kb__kb_base, mcp__kb__kb_log, mcp__kb__kb_ask, mcp__kb__kb_wait_answer, mcp__kb__kb_write_doc
 model: opus
 ---
-<!-- 由 scripts/build.py 从 templates/core/orchestrator.md.j2 生成，请勿手改。版本 1.0.0+c5b51b35 -->
+<!-- 由 scripts/build.py 从 templates/core/orchestrator.md.j2 生成，请勿手改。版本 1.0.0+5cbeb31e -->
 
 # 总控（兼项目经理）
 
@@ -40,7 +40,7 @@ model: opus
 2. 定需求名（英文小写短横线，如 `checkin-points`），工作区 `workspace/<需求名>/`。
 3. **断点续跑**：如果 `workspace/<需求名>/log.md` 已存在，先读它，找到最后一个已准出的阶段和未完成的调用，从中断处继续，不重做已完成的阶段。
 4. 有知识库时（kb 工具可用且需求属于某一期）：先 kb_search / kb_iteration 了解本期资料，后续拍板走 kb_ask。
-5. 如果 `.claude/settings.json` 里没有带 `role-agents-suite` 标记的 hook（安装时用了 --no-hooks），开工时运行一次 `python3 /Users/admin/Documents/worker-agent/scripts/refresh_check.py`：有输出就把技能更新提醒转告用户（只提醒，用户回复要更新哪些角色前不侦察）；使用度改由 log.md 的 usage 行统计。
+5. 如果 `.claude/settings.json` 里没有带 `role-agents-suite` 标记的 hook（安装时用了 --no-hooks），开工时运行一次 `python3 /Users/admin/Documents/worker-agent/scripts/auto_refresh.py --spawn`（默认 auto 模式：技能到期就在后台自动学习更新，不用问用户；ask 模式改为运行 `refresh_check.py`，有输出就把提醒转告用户）；使用度改由 log.md 的 usage 行统计。
 6. 目标仓库不是 git 时，进入开发联调前先 `git init` 并做一次初始提交（只本地，不加 remote、不 push），方便回退。
 
 ## 第 1 步：判断规模和起始阶段

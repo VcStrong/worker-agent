@@ -32,10 +32,18 @@ def copy_repo(git=False):
 STRICT = {"WORKER_AGENT_GUARD": "strict"}   # guard_hook 严格模式（install.sh --guard）；默认模式不出任何决定
 
 
+def set_refresh_mode(root, mode):
+    rp = os.path.join(root, "config", "run.yaml")
+    t = open(rp, encoding="utf-8").read()
+    open(rp, "w", encoding="utf-8").write(re.sub(r"^skills_refresh_mode:\s*\w+", "skills_refresh_mode: %s" % mode, t, flags=re.M))
+
+
 def run(root, *args, env=None, stdin=None):
     e = dict(os.environ)
     e.pop("WORKER_AGENT_HOME", None)
     e.pop("KB_SESSION", None)  # 测试可能跑在知识库后台会话里，hook 行为不能受外层环境影响
+    e.pop("WORKER_AGENT_AUTO_REFRESH", None)
+    e["WORKER_AGENT_CLAUDE_CMD"] = "false"  # 自动更新触发时绝不调用真的 claude
     e.pop("WORKER_AGENT_GUARD", None)
     e.update(env or {})
     r = subprocess.run([PY] + [os.path.join(root, a) if a.endswith(".py") and not os.path.isabs(a) else a for a in args],
@@ -319,6 +327,7 @@ class Hooks(unittest.TestCase):
 
     def test_refresh_check(self):
         root = copy_repo()
+        set_refresh_mode(root, "ask")                          # 提醒 + 拍板的旧流程
         env = {"WORKER_AGENT_TODAY": "2026-11-20"}
         run(root, "scripts/rollback.py", "--snapshot", "init", env=env)
         rc, out = run(root, "scripts/refresh_check.py", "--hook", env=env)
@@ -677,6 +686,7 @@ class KbHost(unittest.TestCase):
 
     def test_refresh_check_silent_in_kb_session(self):
         root = copy_repo()
+        set_refresh_mode(root, "ask")
         env = {"WORKER_AGENT_TODAY": "2027-03-01", "KB_SESSION": "dev"}
         run(root, "scripts/rollback.py", "--snapshot", "init", env={"WORKER_AGENT_TODAY": "2026-11-20"})
         rc, out = run(root, "scripts/refresh_check.py", "--hook", env=env)

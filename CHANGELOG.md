@@ -1,5 +1,13 @@
 # CHANGELOG
 
+## 未发布：技能定期自动学习、自动更新（2026-11-19）
+
+- 新增 `scripts/auto_refresh.py`：`config/run.yaml` 的 `skills_refresh_mode: auto`（默认）下每 7 天无人值守地用 `claude -p` 跑技术情报员（全部角色），核实后自动应用，写摘要 `proposals/summaries/<日期>.md` 并追加到 CHANGELOG，附一键回滚命令；`--install-schedule` 可装 launchd / crontab；`auto_sync_projects` 自动 install --update 本套件装过的项目。
+- refresh_check `--hook`：auto 模式下不再提醒、不等回复，到期就在后台启动自动更新，上次结果只提示一行；`ask` 恢复提醒 + 拍板，`off` 关闭；知识库会话和自动更新自身不触发。
+- apply_proposal 新增 `--auto` / `--summary`：核实过的条目（含废弃、新增 / 下线角色等大改动）全部应用，待核实 / 可疑来源 / 格式错误 / 重复驳回跳过；整批回归退化时逐条重试、只留不退化的。
+- 快照提交只包含技能层、proposals、CHANGELOG，不再 `git add -A` 把用户别的未提交改动一起提交。
+- skills-refresh / tech-scout / orchestrator 说明同步改为默认自动；新增 tests/test_auto_refresh.py。
+
 ## 未发布：guard_hook 默认不拦截，只协助（2026-11-19）
 
 - 角色套件只协助、不比 Claude Code 本身管得更严：guard_hook 默认不输出 ask / deny，放行与否完全交给 Claude Code 自己的权限设置（permission mode、allow / deny 规则、auto 模式分类器）。强推、`sudo rm`、kubectl / helm / terraform、发布、删库、写 agent / 技能包、文档角色写代码文件，默认都不再弹确认或拒绝；知识库后台会话（`KB_SESSION`）同样不再 deny。

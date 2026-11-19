@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
-"""REQ-021 / 023 / 024 / 025：应用技能更新提案（情报员提案、复盘经验）。必须用户拍板。
+"""REQ-021 / 023 / 024 / 025：应用技能更新提案（情报员提案、复盘经验）。
+
+skills_refresh_mode=auto（默认）时情报员的提案由 auto_refresh.py 用 --auto 自动应用；ask 模式或复盘经验照旧拍板。
 
 用法：
   python3 scripts/apply_proposal.py <提案.md> --check                 # 只校验格式 / 来源 / 重复驳回
   python3 scripts/apply_proposal.py <提案.md> --approve 1,3 --reject 2 # 拍板：只应用通过的条目
   python3 scripts/apply_proposal.py <提案.md> --approve all
+  python3 scripts/apply_proposal.py <提案.md> --auto [--summary x.json] # 自动：核实过的条目全部应用，退化的逐条剔除
   python3 scripts/apply_proposal.py <提案.md>                         # 不拍板：只自动应用小改动（需 run.yaml auto_apply_trivial=true）
 
 流程：拍板结果写回提案 → 驳回条目记 proposals/rejected.jsonl（以后不重复提出，除非有新证据）
@@ -508,6 +511,109 @@ def sh(*args):
     return r.returncode, r.stdout + r.stderr
 
 
+def apply_batch(to_apply):
+    """应用一批条目 → build → validate → 回归评测；任何一步失败整批还原。返回 (ok, 错误, 评测结果, 日志)。"""
+    tmp = backup_tree()
+    before = run_evals()
+    log = []
+    try:
+        order = {"retire_role": 0, "merge_role": 1, "new_role": 1, "add_skill": 2}
+        for it in sorted(to_apply, key=lambda x: order.get(x["data"].get("action"), 3)):
+            apply_item(it, log)
+        rc, out = sh(os.path.join(HERE, "build.py"), "--quiet")
+        if rc != 0:
+            raise RuntimeError("build 失败：\n" + out)
+        rc, out = sh(os.path.join(HERE, "validate.py"))
+        if rc != 0:
+            raise RuntimeError("validate 失败：\n" + "\n".join(l for l in out.splitlines() if l.startswith("❌")))
+        after = run_evals()
+        reg = regressions(before, after)
+        if reg:
+            raise RuntimeError("回归退化，拒绝更新（不允许 install --update）：\n  " + "\n  ".join(reg))
+    except Exception as e:
+        restore_tree(tmp)
+        shutil.rmtree(tmp, ignore_errors=True)
+        return False, str(e), None, []
+    shutil.rmtree(tmp, ignore_errors=True)
+    return True, "", after, log
+
+
+BIG_ACTIONS = {"deprecate", "new_role", "retire_role", "merge_role"}
+
+
+def auto_candidates(items, errs):
+    """自动模式（skills_refresh_mode=auto）：核实过的条目全部应用；待核实、含可疑来源、格式错误、重复驳回的跳过。"""
+    bad = {e.split("：")[0] for e in errs}
+    rejected = load_rejected()
+    take, skip = [], []
+    for it in items:
+        d = it["data"]
+        st = d.get("status", "待拍板")
+        if st in ("已应用", "驳回"):
+            continue
+        ev = d.get("evidence") or []
+        dup = any(r["key"] == dedupe_key(d) and not (set(ev) - set(r.get("evidence") or [])) for r in rejected)
+        why = ("格式错误" if it["id"] in bad else "待核实" if st == "待核实" else
+               "含可疑来源" if d.get("suspicious_sources") else "以前驳回过且没有新证据" if dup else "")
+        (skip if why else take).append((it, why))
+    return [t[0] for t in take], [(t[0], t[1]) for t in skip]
+
+
+def write_summary(path, proposal, applied, skipped, failed, tag, prev_tag):
+    """自动更新摘要（JSON），由 auto_refresh.py 汇总成 markdown 和 CHANGELOG。"""
+    def row(it, why=""):
+        d = it["data"]
+        return {"id": it["id"], "title": it["title"], "action": d.get("action"),
+                "target": d.get("skill") or d.get("slug") or d.get("role") or (it["content"] and common.split_frontmatter(it["content"])[0].get("id")) or "",
+                "maturity": d.get("suggested_maturity") or "", "evidence": d.get("evidence") or [],
+                "big": d.get("action") in BIG_ACTIONS, "why": why}
+    common.write_json(path, {"proposal": os.path.basename(proposal), "tag": tag, "prev_tag": prev_tag,
+                             "applied": [row(i) for i in applied], "skipped": [row(i, w) for i, w in skipped],
+                             "failed": [row(i, w) for i, w in failed]})
+
+
+def main_auto(a, text, items, errs):
+    take, skipped = auto_candidates(items, errs)
+    prev_tag = (common.read_json(common.p("skills.lock"), {}) or {}).get("tag")
+    applied, failed, log = [], [], []
+    if take:
+        ok, err, after, log = apply_batch(take)
+        if ok:
+            applied = take
+        else:
+            # 整批不过：逐条重试，只留下不退化的条目
+            print("⚠️  整批应用未通过（%s），改为逐条应用" % err.splitlines()[0])
+            for it in take:
+                ok1, err1, _, log1 = apply_batch([it])
+                if ok1:
+                    applied.append(it)
+                    log += log1
+                else:
+                    failed.append((it, err1.splitlines()[0]))
+    for it in applied:
+        text = set_status(text, it, "已应用")
+    for it, why in failed:
+        text = set_status(text, it, "自动应用失败")
+    open(a.proposal, "w", encoding="utf-8").write(text)
+    with open(common.p("proposals", "apply.log"), "a", encoding="utf-8") as f:
+        for l in log:
+            f.write("%s %s %s（自动更新）\n" % (common.now_iso(), os.path.basename(a.proposal), l))
+    for l in log:
+        print("✅ " + l)
+    for it, why in skipped:
+        print("⏭  %s 跳过：%s" % (it["id"], why))
+    for it, why in failed:
+        print("❌ %s 未应用：%s" % (it["id"], why))
+    tag = None
+    if applied and not a.no_snapshot:
+        tag, mode = snapshot.take("自动更新 %s" % os.path.basename(a.proposal))
+        print("📸 快照 %s（%s）" % (tag, "git 本地提交 + 标签，未 push" if mode == "git" else "snapshots/%s/" % tag))
+    if a.summary:
+        write_summary(a.summary, a.proposal, applied, skipped, failed, tag, prev_tag)
+    print("—— 自动应用 %d 条，跳过 %d 条，失败 %d 条" % (len(applied), len(skipped), len(failed)))
+    return 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("proposal")
@@ -515,6 +621,8 @@ def main(argv=None):
     ap.add_argument("--approve", default="")
     ap.add_argument("--reject", default="")
     ap.add_argument("--no-snapshot", action="store_true", help="调试用：不打快照")
+    ap.add_argument("--auto", action="store_true", help="自动模式：核实过的条目全部应用（skills_refresh_mode=auto 时由 auto_refresh.py 调用）")
+    ap.add_argument("--summary", help="自动模式：把应用结果写成 JSON 摘要")
     a = ap.parse_args(argv)
 
     text, items = parse(a.proposal)
@@ -529,6 +637,8 @@ def main(argv=None):
     if a.check:
         print("—— 提案 %d 条：%d 个错误，%d 条告警" % (len(items), len(errs), len(warns)))
         return 1 if errs else 0
+    if a.auto:
+        return main_auto(a, text, items, errs)
 
     ids = [it["id"] for it in items]
     approve = set(ids) if a.approve.strip() == "all" else {x.strip() for x in a.approve.split(",") if x.strip()}
@@ -568,29 +678,10 @@ def main(argv=None):
         print("ℹ️  没有要应用的条目（auto_apply_trivial=%s；未拍板的条目等用户拍板）。驳回 %d 条已记录。" % (str(auto).lower(), len(reject)))
         return 0
 
-    tmp = backup_tree()
-    before = run_evals()
-    log = []
-    try:
-        order = {"retire_role": 0, "merge_role": 1, "new_role": 1, "add_skill": 2}
-        for it in sorted(to_apply, key=lambda x: order.get(x["data"].get("action"), 3)):
-            apply_item(it, log)
-        rc, out = sh(os.path.join(HERE, "build.py"), "--quiet")
-        if rc != 0:
-            raise RuntimeError("build 失败：\n" + out)
-        rc, out = sh(os.path.join(HERE, "validate.py"))
-        if rc != 0:
-            raise RuntimeError("validate 失败：\n" + "\n".join(l for l in out.splitlines() if l.startswith("❌")))
-        after = run_evals()
-        reg = regressions(before, after)
-        if reg:
-            raise RuntimeError("回归退化，拒绝更新（不允许 install --update）：\n  " + "\n  ".join(reg))
-    except Exception as e:
-        restore_tree(tmp)
-        shutil.rmtree(tmp, ignore_errors=True)
-        print("❌ %s\n已还原到应用前的状态，技能层没有改动。" % e)
+    ok, err, after, log = apply_batch(to_apply)
+    if not ok:
+        print("❌ %s\n已还原到应用前的状态，技能层没有改动。" % err)
         return 1
-    shutil.rmtree(tmp, ignore_errors=True)
     for it in to_apply:
         text = set_status(text, it, "已应用")
     open(a.proposal, "w", encoding="utf-8").write(text)

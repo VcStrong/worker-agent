@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""REQ-028：技能更新提醒（只提醒，用户批准后才执行 /skills-refresh）。纯本地脚本，不调用模型。
+"""REQ-028：技能更新提醒 / 自动更新触发。纯本地脚本，不调用模型。
+
+run.yaml 的 skills_refresh_mode：
+  - auto（默认）：--hook 不提醒；到期就在后台启动 auto_refresh.py --run（无人值守侦察 + 自动应用），
+    上次自动更新的摘要用一行 systemMessage 告诉用户，不要求回复；
+  - ask：下面的「提醒 + 用户批准后 /skills-refresh + 拍板应用」旧流程；
+  - off：什么都不做。
+
+ask 模式：
 
 由 SessionStart hook 运行（--hook）。满足任一条件才提醒：
   - 距上次 /skills-refresh 超过 refresh_remind_days（默认 30 天）
@@ -115,8 +123,23 @@ def main(argv=None):
         save_state(st)
         print("✅ 已记录本次技能侦察时间 %s" % st["last_refresh"])
         return 0
-    if a.hook and (os.environ.get("KB_SESSION") or "").strip():
-        # 知识库无人值守会话：没人看得到提醒，不注入上下文，也不占用当天的提醒（留给用户本人的交互会话）
+    if a.hook and ((os.environ.get("KB_SESSION") or "").strip() or os.environ.get("WORKER_AGENT_AUTO_REFRESH")):
+        # 知识库无人值守会话 / 自动更新自己起的情报员会话：没人看得到提醒，不注入上下文、不触发自动更新、不占当天的提醒
+        return 0
+    mode = str(common.run_config().get("skills_refresh_mode", "auto")).strip().lower()
+    if mode == "off":
+        return 0
+    if a.hook and mode != "ask":
+        # 默认 auto：不提醒、不等回复。到期就在后台启动自动更新；上次更新的摘要只提示一行，用户事后看
+        try:
+            import auto_refresh
+            msgs = [m for m in (auto_refresh.pending_notice(),) if m]
+            if auto_refresh.spawn():
+                msgs.append("🧠 已在后台开始本周期的技能自动学习与更新（不影响当前会话），完成后下次会话开头会有摘要。")
+            if msgs:
+                print(json.dumps({"systemMessage": "\n".join(msgs)}, ensure_ascii=False))
+        except Exception as e:  # hook 永不阻断会话
+            sys.stderr.write("refresh_check: %s\n" % e)
         return 0
     try:
         if not a.force:

@@ -4,7 +4,7 @@
 
 - **14 个专家**（由图谱里的 48 个原始岗位合并而成）：9 个传统专家 + 5 个 AI 专家
 - **总控**（orchestrator，兼项目经理 / Scrum Master）：选角、调度、拍板、日志、仲裁
-- **技术情报员**（tech-scout）：只管技能维护，用户批准后才侦察
+- **技术情报员**（tech-scout）：只管技能维护，默认每周自动侦察全部角色、核实后自动更新技能，事后出摘要
 - **技能层**：98 个可更新的技能包，带成熟度（采用 / 试用 / 评估 / 暂缓）、as_of 和官方来源
 - 只依赖 `python3`（3.8+），不需要 pip 包
 
@@ -43,7 +43,7 @@
 3. 把 hooks 合并进 `.claude/settings.json`：原文件先备份为 `settings.json.bak`，只追加本套件的 hooks。这些 hook 都是纯本地 Python，不调用模型：
    - `usage_hook.py`：使用度统计（PreToolUse: Task|Agent|Skill|Read，SubagentStop）
    - `guard_hook.py`：安全边界（PreToolUse: Bash|Write|Edit…）。**默认不注册、不拦截**：角色套件只协助，不比 Claude Code 本身管得更严，放行与否完全交给 Claude Code 自己的权限设置（permission mode、allow / deny 规则、auto 模式分类器）。想要严格模式加 `--guard`（注册为 `guard_hook.py --strict`），或设环境变量 `WORKER_AGENT_GUARD=strict`。重装（`--update`）会按本次选项更新：旧版装进去的 guard_hook 条目会被清掉。
-   - `refresh_check.py`：技能更新提醒（SessionStart）
+   - `refresh_check.py`：SessionStart：默认 auto 模式下到期就在后台启动技能自动更新、提示上次更新摘要；ask 模式下是更新提醒
    - 不想改 settings.json 就加 `--no-hooks`。
 
 其他选项：`--mcp none|kb,context7` 强制指定，`--dry-run` 只看不写，`--uninstall` 只删本套件装进去的文件和 hooks。
@@ -92,7 +92,12 @@ AI 专家参与规则：
 | max_calls | 30 | 单个需求最多调用多少次角色，到了就停下请你决定 |
 | model_overrides | {} | 按档位覆盖模型，如 `lite: {data-growth: haiku}`，改完重新 build |
 | refresh_remind_days / stale_days / stale_days_ai | 30 / 180 / 90 | 技能更新提醒和过期阈值 |
-| auto_apply_trivial | false | 设为 true 时，只改 as_of、补来源、修错别字的提案条目自动应用 |
+| skills_refresh_mode | auto | auto：定期自动学习并应用，事后看摘要；ask：只提醒、提案要拍板；off：关闭 |
+| skills_refresh_interval_days | 7 | auto 模式下多少天自动侦察一次 |
+| skills_refresh_roles | all | 自动侦察范围（all 或逗号分隔的角色 slug） |
+| skills_refresh_command | claude | 无人值守跑情报员的命令（`claude -p`） |
+| auto_sync_projects | true | 自动更新后对本套件装过的项目执行 install --update |
+| auto_apply_trivial | false | ask 模式下设为 true 时，只改 as_of、补来源、修错别字的提案条目自动应用 |
 
 ### 安全边界
 
@@ -108,17 +113,22 @@ AI 专家参与规则：
 
 技能和角色是分开的：角色（是谁、管什么）来自图谱和合并映射，比较稳定；技能（用什么、怎么做）在 `data/skills/<领域>/<id>.md`，变化快。
 
-1. **提醒**：会话开始时 `refresh_check.py` 检查两件事：距上次更新是否超过 30 天，有没有技能包过期。满足条件就提醒一次（同一天只提醒一次），按使用度倒序列出角色。你不回复，它就不会消耗 AI 用量。回复「暂缓 7 天」就 7 天内不再提醒。
-2. **侦察**：你选好角色后执行 `/skills-refresh 前端工程师 客户端工程师`。技术情报员只侦察这些角色登记的一手信息源（`config/sources.yaml`），提案写到 `proposals/<日期>-<领域>.md`，每条附证据链接和发布日期；找不到一手来源的条目标「待核实」。
-3. **拍板应用**：`python3 scripts/apply_proposal.py proposals/<提案>.md --approve 1,3 --reject 2`。它会依次 build、validate、跑选角评测和技能回归题；任何一项下降就整体还原并拒绝。通过后打快照：git 仓库做本地提交加标签 `skills-<日期>-<序号>`（不 push）；不是 git 就拷到 `snapshots/`。
-4. **同步**：`./install.sh --update --project <目录>`。只替换有变化的文件，并打印「旧版本 → 新版本」；`local/` 下你自己的覆盖不会被动。
-5. **回滚**：`python3 scripts/rollback.py` 回到上一个快照，`--list` 查看所有快照。
-6. **经验回流**：每个需求结束时，总控把各角色踩到的坑整理成 `proposals/lessons-<需求名>.md`，同样要你拍板后才写入技能包。只适用于你自己项目的经验写进 `local/skills/` 覆盖层。
+worker-agent 的本质是持续学习、完善自身技能，不设卡。默认（`config/run.yaml` 的 `skills_refresh_mode: auto`）全程自动，你事后看摘要即可：
+
+1. **定期自动侦察**：每 7 天（`skills_refresh_interval_days`）一次。会话开始时 SessionStart hook 发现到期，就在后台分离启动 `scripts/auto_refresh.py --run`，不阻塞会话、不弹确认；知识库后台会话不触发。不开会话也想按时跑：`python3 scripts/auto_refresh.py --install-schedule`（macOS 装 launchd，其他系统装 crontab，每天 10:00 检查、到期才跑；`--uninstall-schedule` 移除）。`--status` 查看状态，`--run --force` 立即跑一次。
+2. **侦察**：`claude -p` 无人值守地运行技术情报员，覆盖全部角色（`skills_refresh_roles`），只读一手信息源（`config/sources.yaml`），提案写到 `proposals/<日期>-<领域>.md`；找不到一手来源的条目标「待核实」。
+3. **自动应用**：`apply_proposal.py --auto` 应用核实过的条目：版本更新、成熟度升降、新增技能，以及废弃技能、新增 / 下线角色这类大改动。待核实、含可疑来源、格式错误、以前驳回过又没有新证据的条目跳过。应用后依次 build、validate、跑选角评测和技能回归题；整批退化时逐条重试，只留下不退化的条目。通过后打快照：git 仓库只把技能层、proposals、CHANGELOG 做成一次本地提交并打标签 `skills-<日期>-<序号>`（不 push，不碰你别的未提交改动）；不是 git 就拷到 `snapshots/`。
+4. **摘要**：每次写 `proposals/summaries/<日期>.md`，并在根 `CHANGELOG.md` 追加一节：改了哪些技能、动作、来源链接，大改动单独标「⚠️」，附一键回滚命令。下次会话开头只提示一行，不用回复。
+5. **同步与回滚**：自动更新后，对本套件装过的项目（以及 `~/.claude`）执行 `install.sh --update`（`auto_sync_projects`）。不满意就 `python3 scripts/rollback.py`（回到上一个快照），`--list` 查看所有快照。
+
+改回「需拍板」：把 `skills_refresh_mode` 改成 `ask`，这时恢复旧流程：会话开始时提醒（距上次超过 30 天或有技能包过期，同一天只提醒一次），你选好角色后执行 `/skills-refresh <角色…>`，再 `python3 scripts/apply_proposal.py proposals/<提案>.md --approve 1,3 --reject 2` 拍板应用。改成 `off` 完全关闭。手动执行 `/skills-refresh` 在 auto 模式下同样会直接应用。
+
+6. **经验回流**：每个需求结束时，总控把各角色踩到的坑整理成 `proposals/lessons-<需求名>.md`，要你拍板后才写入技能包。只适用于你自己项目的经验写进 `local/skills/` 覆盖层。
 
 其他调整：
 
 - 改成熟度：`config/radar.yaml` 的 `overrides`。`region: cn | global` 决定国内外两套方案（推送、统计、云、大模型、设计协作）里默认采用哪一套，改完重新 `python3 scripts/build.py`。
-- 新角色：情报员发现新岗位时，默认提议并入现有专家；拍板后写进 `data/roles_overlay.json`，不改图谱原文。
+- 新角色：情报员发现新岗位时，默认提议并入现有专家；auto 模式下自动应用（ask 模式拍板后）写进 `data/roles_overlay.json`，不改图谱原文。
 
 ## 目录
 
@@ -139,7 +149,7 @@ workflow/stages.md           9 阶段准入准出
 rules/arbitration.md         6 条仲裁规则
 config/                      team / run / radar / sources / kb_scenes.json（知识库场景表）
 proposals/                   提案、经验、待核实、驳回记录
-scripts/                     extract build validate who usage_report refresh_check apply_proposal rollback install_helper
+scripts/                     extract build validate who usage_report refresh_check auto_refresh apply_proposal rollback install_helper
 scripts/hooks/               usage_hook guard_hook kb_guard（知识库会话判断） replay_guard（知识库会话命令重放）
 scripts/eval_routing/        选角评测（54 条，含 12 条知识库场景题）；scripts/eval_skills/ 技能回归题（53 条）
 examples/checkin-points/     端到端样例：App 每日签到 + 积分

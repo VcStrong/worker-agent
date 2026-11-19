@@ -9,6 +9,7 @@ import common
 SNAP_DIRS = ["data/skills", "agents", "skills", "local", "data/merge_map.json", "data/roles_overlay.json",
              "data/experts.json", "config/radar.yaml", "config/team.yaml", "workflow/stages.md",
              "scripts/eval_routing/cases.json", "scripts/eval_skills/cases.json", "skills.lock"]
+COMMIT_EXTRA = ["proposals", "CHANGELOG.md"]
 
 
 def is_git():
@@ -63,10 +64,13 @@ def take(reason):
     tag = next_tag()
     write_lock(tag, reason)
     if is_git():
-        git("add", "-A")
-        st = git("status", "--porcelain", check=False)
-        if st:
-            git("commit", "-q", "-m", "skills: %s（%s）\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" % (reason, tag))
+        # 只提交技能层、提案和 CHANGELOG，不把用户在仓库里别的未提交改动一起提交
+        paths = [x for x in SNAP_DIRS + COMMIT_EXTRA
+                 if os.path.exists(common.p(x)) or git("ls-files", "--", x, check=False)]
+        git("add", "-A", "--", *paths)
+        changed = [x for x in git("diff", "--cached", "--name-only", "--no-renames", "--", *paths, check=False).splitlines() if x]
+        if changed:
+            git("commit", "-q", "--only", "-m", "skills: %s（%s）\n\nCo-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>" % (reason, tag), "--", *changed)
         git("tag", tag)
         return tag, "git"
     dest = common.p("snapshots", tag)

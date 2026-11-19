@@ -12,8 +12,14 @@ model_overrides:
   standard: {}
   # 例：lite: {data-growth: haiku, architect: sonnet}
 
-# 技能维护
-refresh_remind_days: 30    # 距上次 /skills-refresh 超过多少天提醒
+# 技能维护（持续学习、不设卡）
+skills_refresh_mode: auto  # auto：定期自动侦察并应用，事后看摘要；ask：只提醒，提案要拍板；off：关闭
+skills_refresh_interval_days: 7   # auto 模式下多少天自动侦察一次
+skills_refresh_roles: all  # 自动侦察范围：all 或逗号分隔的角色 slug
+skills_refresh_command: claude    # 无人值守跑技术情报员的命令（claude -p）
+skills_refresh_timeout: 3600      # 一次侦察最长秒数
+auto_sync_projects: true   # 自动更新后对已安装的项目执行 install --update
+refresh_remind_days: 30    # ask 模式：距上次 /skills-refresh 超过多少天提醒
 stale_days: 180            # 普通技能包 as_of 过期阈值
 stale_days_ai: 90          # 5 个 AI 专家挂的技能和 AI 领域技能包
-auto_apply_trivial: false  # true 时只改 as_of / 补来源 / 错别字的提案条目自动应用并记日志
+auto_apply_trivial: false  # ask 模式下 true 时只改 as_of / 补来源 / 错别字的提案条目自动应用并记日志
