@@ -191,10 +191,11 @@ def install(a, base, project):
     if not a.no_hooks:
         settings = os.path.join(base, "settings.json")
         args = [sys.executable, os.path.join(HERE, "settings_merge.py"), "install", settings, "--home", HOME]
+        if a.guard:
+            args.append("--guard")
         subprocess.run(args, check=True)
     else:
         print("ℹ️  --no-hooks：不改 settings.json；使用度改为从 workspace/*/log.md 统计，更新提醒改为总控开工时检查")
-        print("⚠️  没有 guard hook：危险命令不会自动弹确认；产品 / 设计等文档角色有 Write 工具，无法再在工具层拦截它们写代码文件，只能靠提示词约束")
     if project:
         register_project(project)
     n_agents = len([r for r in files if r.startswith("agents/")])
@@ -249,6 +250,7 @@ def main(argv=None):
     ap.add_argument("--update", action="store_true", help="只替换有变化的文件，打印旧版本 → 新版本；回归退化时拒绝")
     ap.add_argument("--uninstall", action="store_true", help="只删除本套件装进去的文件和 hooks")
     ap.add_argument("--no-hooks", action="store_true", help="不改 settings.json")
+    ap.add_argument("--guard", action="store_true", help="注册 guard_hook 严格模式（危险命令弹确认、知识库后台会话拒绝）；默认不注册、不拦截")
     ap.add_argument("--mcp", default="auto", help="auto（检测） / none / kb,context7")
     ap.add_argument("--dry-run", action="store_true")
     a = ap.parse_args(argv)

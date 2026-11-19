@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """把知识库历史会话日志（claude -p --output-format stream-json 的 .jsonl）里的 Bash 命令，
-按会话类型带上 KB_SESSION 放到 guard_hook.decide() 下重放，看装了用户级 hooks 后哪些命令会被硬拒（REQ-018 / 020）。
+按会话类型带上 KB_SESSION 放到 guard_hook.decide(strict=True)（严格模式，install.sh --guard）下重放，看开了严格模式后哪些命令会被硬拒（REQ-018 / 020）。
 纯本地，只读日志，不执行任何命令、不调用模型。
 
 用法：
@@ -105,7 +105,7 @@ def main(argv=None):
             for cmd, cwd in cmds:
                 evt = {"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": cwd}
                 st["commands"] += 1
-                d = guard_hook.decide(evt)
+                d = guard_hook.decide(evt, strict=True)
                 if d and d[0] == "deny":
                     st["deny"] += 1
                     label = guard_hook.kb_danger(cmd, cwd) or "原有 deny：" + re.sub(r"^【[^】]*】", "", d[1])[:40]

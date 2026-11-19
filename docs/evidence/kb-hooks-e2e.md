@@ -1,5 +1,7 @@
 # 知识库会话 × 用户级 hooks 实测记录（REQ-018 / REQ-020）
 
+> 2026-11-19 起 guard_hook 默认不拦截（不注册、不出决定），下面的记录只适用于 `./install.sh --guard` / `WORKER_AGENT_GUARD=strict` 打开的严格模式。
+
 2026-11-16，审查第 2 轮整改后（guard_hook 的知识库判断改在 `scripts/hooks/kb_guard.py`）。
 hooks 已用 `./install.sh --user --update` 装到 `~/.claude/settings.json`（guard_hook、usage_hook、SessionStart 的 refresh_check），
 hook 命令直接引用仓库里的脚本，改动即时生效。

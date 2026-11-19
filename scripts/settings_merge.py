@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """REQ-014 / 026 / 028：把本套件的 hooks 合并进目标 .claude/settings.json（先备份 .bak），或干净移除。
 
-  python3 scripts/settings_merge.py install   <settings.json> [--home <worker-agent>] [--no-reminder]
+  python3 scripts/settings_merge.py install   <settings.json> [--home <worker-agent>] [--no-reminder] [--guard]
   python3 scripts/settings_merge.py uninstall <settings.json>
 
 只追加带标记 `role-agents-suite` 的 hook，原有配置保持不变；卸载只删带标记的 hook。
+guard_hook（安全边界）默认不注册：角色套件只协助、不拦截，放行与否交给 Claude Code 自己的权限设置。
+加 --guard 才注册为 `guard_hook.py --strict`（严格模式）。重装时先删掉旧的带标记条目再按本次选项写，旧版装进去的 guard_hook 会被清掉。
 """
 import json
 import os
@@ -14,18 +16,20 @@ import sys
 MARK = "role-agents-suite"
 
 
-def hooks_for(home, reminder=True):
+def hooks_for(home, reminder=True, guard=False):
     py = "python3"
     q = lambda p: '"%s"' % os.path.join(home, p)  # noqa: E731
     h = {
         "PreToolUse": [
             {"matcher": "Task|Agent|Skill|Read", "hooks": [{"type": "command", "command": "%s %s # %s" % (py, q("scripts/hooks/usage_hook.py"), MARK)}]},
-            {"matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit", "hooks": [{"type": "command", "command": "%s %s # %s" % (py, q("scripts/hooks/guard_hook.py"), MARK)}]},
         ],
         "SubagentStop": [
             {"hooks": [{"type": "command", "command": "%s %s # %s" % (py, q("scripts/hooks/usage_hook.py"), MARK)}]},
         ],
     }
+    if guard:
+        h["PreToolUse"].append({"matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit", "hooks": [
+            {"type": "command", "command": "%s %s --strict # %s" % (py, q("scripts/hooks/guard_hook.py"), MARK)}]})
     if reminder:
         h["SessionStart"] = [{"hooks": [{"type": "command", "command": "%s %s --hook # %s" % (py, q("scripts/refresh_check.py"), MARK)}]}]
     return h
@@ -90,12 +94,14 @@ def main(argv):
     if action == "install":
         hooks = settings.setdefault("hooks", {})
         added = 0
-        for event, groups in hooks_for(home, "--no-reminder" not in argv).items():
+        for event, groups in hooks_for(home, "--no-reminder" not in argv, "--guard" in argv).items():
             hooks.setdefault(event, []).extend(groups)
             added += len(groups)
         saved = save(path, settings)
         print("✅ hooks 已合并进 %s（追加 %d 组%s）%s" % (path, added, "，替换旧版 %d 条" % removed if removed else "",
                                                      "；改前已备份为 %s" % os.path.basename(saved) if saved else ""))
+        print("   guard_hook：%s" % ("严格模式（--guard）：危险命令弹确认，知识库后台会话拒绝，改 agent / 技能包拒绝" if "--guard" in argv
+                                  else "未注册（默认不拦截，放行与否交给 Claude Code 自己的权限设置；要严格模式加 --guard）"))
     else:
         if not existed:
             print("ℹ️  %s 不存在，跳过" % path)

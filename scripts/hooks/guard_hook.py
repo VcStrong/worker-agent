@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """REQ-011：安全边界 hook（PreToolUse，matcher: Bash|Write|Edit|MultiEdit|NotebookEdit）。纯本地，不调用模型。
 
+默认不拦截：角色套件只协助、不比 Claude Code 本身管得更严。不开严格模式时本 hook 什么都不输出，
+放行与否完全交给 Claude Code 自己的权限设置（permission mode、allow / deny 规则、auto 模式分类器）。
+安装默认也不注册本 hook；想要下面的严格规则时显式打开：`./install.sh --guard`（注册为 `guard_hook.py --strict`），
+或环境变量 WORKER_AGENT_GUARD=strict。以下规则只在严格模式下生效：
+
 - 部署、发布、强推、发推送、删库类命令 → permissionDecision=ask：停下让用户确认后才执行。
   常用命令（普通 git push、rm / find -delete、git reset --hard / clean -f / branch -D）用户已授权，直接放行（COMMON_ALLOW），
   其中强推、+ 推送、删远端分支、sudo 删除、删 / 或 ~ 仍 ask（common_risky）。
@@ -204,7 +209,20 @@ def kb_session():
     return bool((os.environ.get("KB_SESSION") or "").strip())
 
 
-def decide(evt):
+STRICT_VALUES = {"strict", "1", "on", "true", "yes"}
+
+
+def strict_mode(argv=None):
+    """严格模式：命令行带 --strict（install.sh --guard 注册的写法），或 WORKER_AGENT_GUARD=strict。"""
+    if "--strict" in (sys.argv[1:] if argv is None else argv):
+        return True
+    return (os.environ.get("WORKER_AGENT_GUARD") or "").strip().lower() in STRICT_VALUES
+
+
+def decide(evt, strict=None):
+    """返回 (permissionDecision, reason) 或 None（不出决定）。默认模式一律 None。"""
+    if not (strict_mode() if strict is None else strict):
+        return None
     d = _decide(evt)
     # 知识库会话：交互会话放行的常用命令（COMMON_ALLOW）同样放行，免打扰时不被拒、不卡住；
     # 交互会话会 ask 的（强推、sudo 删除、部署发布、删库…）才交给 kb_danger 细判，认定危险就拒绝。

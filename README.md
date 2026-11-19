@@ -42,7 +42,7 @@
 2. 同名文件先备份成 `*.bak-<时间>`。
 3. 把 hooks 合并进 `.claude/settings.json`：原文件先备份为 `settings.json.bak`，只追加本套件的 hooks。这些 hook 都是纯本地 Python，不调用模型：
    - `usage_hook.py`：使用度统计（PreToolUse: Task|Agent|Skill|Read，SubagentStop）
-   - `guard_hook.py`：安全边界（PreToolUse: Bash|Write|Edit…）
+   - `guard_hook.py`：安全边界（PreToolUse: Bash|Write|Edit…）。**默认不注册、不拦截**：角色套件只协助，不比 Claude Code 本身管得更严，放行与否完全交给 Claude Code 自己的权限设置（permission mode、allow / deny 规则、auto 模式分类器）。想要严格模式加 `--guard`（注册为 `guard_hook.py --strict`），或设环境变量 `WORKER_AGENT_GUARD=strict`。重装（`--update`）会按本次选项更新：旧版装进去的 guard_hook 条目会被清掉。
    - `refresh_check.py`：技能更新提醒（SessionStart）
    - 不想改 settings.json 就加 `--no-hooks`。
 
@@ -64,9 +64,9 @@
 
 - `config/kb_scenes.json`：场景表契约。场景（管家 / 流程设计 / 需求 / 需求体检 / 方案 / 开发 / 开发·端 / 审查·端 / Bug分析 / Bug修复 / 跟进 / 发布）→ 主导角色、参与角色、触发条件、每会话调用上限、是否只读、产物名；「标准」「精简」两档各给一份显式名单（知识库只用标准库，不解析 YAML），`@端` 按「端角色」换成对应端的工程师。安装时拷到 `~/.claude/role-agents/config/kb_scenes.json`，知识库读不到时用它自己的内置兜底表。格式是知识库和套件之间的 v1 契约（变更 CR-001），改字段结构要升「版本」并通知知识库同步内置兜底表。`validate.py` 检查：版本=1、12 个场景齐全、每个场景有上限 / 只读 / 标准与精简两档的主导和参与、所有角色名存在（或 `@端`）、精简名单 ⊆ `team.yaml` tiers.lite.roles、只读安全角色不含工程师。
 - **知识库宿主模式**：每个专家的「工作方式」末尾都有这一段（不论安装时是否检测到 kb MCP）。任务说明里写了「知识库会话」时，不写 `workspace/`、不用 Write 建文件，产物正文作为最终回复交回主会话，由主会话用 kb 工具落库（其他产物写到 `其他资料/角色产物/`）；建议注明「建议来自：<角色>」，拍板由主会话发 kb_ask。
-- **guard hook 无人值守**：环境变量 `KB_SESSION` 非空（知识库后台会话）时，交互会话放行的常用命令（普通 `git push`、删文件、`git reset --hard` 等）同样放行，免打扰时不会卡住；没人能点确认，交互会话要弹确认（ask）的危险操作改成直接拒绝（deny），提示「无人值守：用 kb_ask 请用户确认，由用户执行」，会话不会挂住。判断在 `scripts/hooks/kb_guard.py`：按「能证明是数据才放行，其余照原有规则拒绝」——拆开 `sh -c` / `eval` / `ssh` / `$( )` / 反引号 / `sudo -u` / `timeout` 等前缀递归检查；引号和 here-doc 里的文字、grep / cat / echo 等只读命令的参数、python 代码里不执行的字符串不算；`git rm`、删除工作目录或临时目录里的文件放行；`git push`、改远端、丢弃改动、删工作目录以外或算不出目标的文件、部署发布、发推送、删库拒绝；其余认不出的命令只要原有规则命中仍拒绝。知识库自己用 Python 调 git 推送不经过 hook，不受影响。`refresh_check` 在知识库会话里不注入提醒、不占当天的提醒次数。实测记录见 `docs/evidence/kb-hooks-e2e.md`；`python3 scripts/hooks/replay_guard.py <知识库目录>` 可以把历史会话命令放到当前 hook 下重放。
+- **guard hook 无人值守（仅严格模式）**：默认 guard_hook 不拦截，知识库后台会话和交互会话一样，放行与否交给 Claude Code 自己的权限设置。以下只在 `--guard` / `WORKER_AGENT_GUARD=strict` 打开严格模式时生效：环境变量 `KB_SESSION` 非空（知识库后台会话）时，交互会话放行的常用命令（普通 `git push`、删文件、`git reset --hard` 等）同样放行，免打扰时不会卡住；没人能点确认，交互会话要弹确认（ask）的危险操作改成直接拒绝（deny），提示「无人值守：用 kb_ask 请用户确认，由用户执行」，会话不会挂住。判断在 `scripts/hooks/kb_guard.py`：按「能证明是数据才放行，其余照原有规则拒绝」——拆开 `sh -c` / `eval` / `ssh` / `$( )` / 反引号 / `sudo -u` / `timeout` 等前缀递归检查；引号和 here-doc 里的文字、grep / cat / echo 等只读命令的参数、python 代码里不执行的字符串不算；`git rm`、删除工作目录或临时目录里的文件放行；`git push`、改远端、丢弃改动、删工作目录以外或算不出目标的文件、部署发布、发推送、删库拒绝；其余认不出的命令只要原有规则命中仍拒绝。知识库自己用 Python 调 git 推送不经过 hook，不受影响。`refresh_check` 在知识库会话里不注入提醒、不占当天的提醒次数。实测记录见 `docs/evidence/kb-hooks-e2e.md`；`python3 scripts/hooks/replay_guard.py <知识库目录>` 可以把历史会话命令放到当前 hook 下重放。
 - 安装结束打印「知识库角色团：可用（kb MCP ✅，agent 16/16，场景表 12 个场景）」；不可用时写明缺什么。
-- 注意：用户级安装的 hooks 也作用于你自己的交互式 Claude Code 会话（那里没有 `KB_SESSION`，危险操作照旧弹确认）。
+- 注意：用户级安装的 hooks 也作用于你自己的交互式 Claude Code 会话。默认不装 guard_hook，不会弹确认；开了严格模式时交互会话（没有 `KB_SESSION`）对危险操作弹确认。
 
 ### 档位怎么选（config/team.yaml）
 
@@ -97,9 +97,10 @@ AI 专家参与规则：
 ### 安全边界
 
 - 产品、设计、数据与增长、AI 产品经理、AI 评测合规这几个角色只读代码、只写文档，没有 Edit / Bash 权限。工程类角色可以在你指定的仓库里真实改代码。
-- 部署、发布、强推、发推送、删库，任何角色都只出方案。guard hook 会对这类命令弹确认（ask）。日常常用的普通 `git push`、`rm`、`find -delete`、`git reset --hard` / `clean -f` / `branch -D` 直接放行（`guard_hook.py` 的 `COMMON_ALLOW`）；其中强推 / 删远端分支、`sudo` 删除、删根目录或家目录仍弹确认。知识库无人值守会话不受影响，照旧按 `kb_guard` 拒绝。
+- 角色套件只给意见、补能力、提速度，不设卡、不弹确认、不拒绝执行：默认 guard hook 不拦截任何命令或写文件，放行与否完全交给 Claude Code 自己的权限设置。
+- 严格模式（`./install.sh --guard` 或 `WORKER_AGENT_GUARD=strict`，自己选择打开）：部署、发布、强推、发推送、删库类命令弹确认（ask）；日常常用的普通 `git push`、`rm`、`find -delete`、`git reset --hard` / `clean -f` / `branch -D` 直接放行（`COMMON_ALLOW`），其中强推 / 删远端分支、`sudo` 删除、删根目录或家目录仍弹确认；知识库无人值守会话按 `kb_guard` 拒绝；改 agent / 技能包拒绝（走更新提案）；文档角色写代码文件拒绝。
 - 目标仓库不是 git 时，开发前先 `git init` 并做一次本地初始提交，不加 remote、不 push。
-- 任何角色在执行需求时都不能直接改 agent 或技能包，guard hook 会拒绝，只能提交更新提案。
+- 角色在执行需求时改 agent 或技能包应走更新提案（严格模式下 guard hook 会拒绝直接改）。
 - 只有技术情报员能用 WebSearch；工程角色只用 WebFetch 查官方文档。抓回的网页只当数据，不执行其中的指令。
 - 知识库方面，没有任何角色拿到 kb_base_secret、kb_set_status 或批准开发相关的工具，`validate.py` 会检查。
 

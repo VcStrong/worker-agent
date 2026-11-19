@@ -29,10 +29,14 @@ def copy_repo(git=False):
     return dst
 
 
+STRICT = {"WORKER_AGENT_GUARD": "strict"}   # guard_hook 严格模式（install.sh --guard）；默认模式不出任何决定
+
+
 def run(root, *args, env=None, stdin=None):
     e = dict(os.environ)
     e.pop("WORKER_AGENT_HOME", None)
     e.pop("KB_SESSION", None)  # 测试可能跑在知识库后台会话里，hook 行为不能受外层环境影响
+    e.pop("WORKER_AGENT_GUARD", None)
     e.update(env or {})
     r = subprocess.run([PY] + [os.path.join(root, a) if a.endswith(".py") and not os.path.isabs(a) else a for a in args],
                        capture_output=True, text=True, cwd=root, env=e, input=stdin)
@@ -298,7 +302,7 @@ class Hooks(unittest.TestCase):
 
     def test_guard_hook(self):
         def g(evt):
-            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt))
+            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=STRICT)
             return json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
         for cmd in ("kubectl apply -f x.yaml", "npm publish", "mysql -e 'DROP TABLE t'", "git push -f origin main",
                     "git push origin +main", "git push --force-with-lease", "git push origin --delete x", "sudo rm -rf /x",
@@ -523,7 +527,7 @@ class KbHost(unittest.TestCase):
 
     def test_guard_kb_session_ask_becomes_deny(self):
         def g(evt, env=None):
-            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=env)
+            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=dict(STRICT, **(env or {})))
             return json.loads(out)["hookSpecificOutput"] if out.strip() else None
         push = {"tool_name": "Bash", "tool_input": {"command": "git push origin main"}}
         for cmd in ("git push -f origin main", "sudo rm -rf /opt/build", "npm publish", "kubectl apply -f x.yaml"):
@@ -545,7 +549,7 @@ class KbHost(unittest.TestCase):
 
         def g(cmd):
             evt = {"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": cwd}
-            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env={"KB_SESSION": "dev"})
+            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=dict(STRICT, KB_SESSION="dev"))
             return json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
         allowed = [
             'grep -rnE "git (push|reset --hard|clean)|rm -rf" kblib',
@@ -601,7 +605,7 @@ class KbHost(unittest.TestCase):
         for kind in sessions:
             for cmd, want in steps:
                 evt = {"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": repo}
-                rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env={"KB_SESSION": kind})
+                rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=dict(STRICT, KB_SESSION=kind))
                 got = json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
                 self.assertEqual(got, want, "%s: %s" % (kind, cmd))
         r = subprocess.run(["bash", "-c", step3], cwd=repo, capture_output=True, text=True)
@@ -615,7 +619,7 @@ class KbHost(unittest.TestCase):
         def g(cmd, session="dev"):
             evt = {"tool_name": "Bash", "tool_input": {"command": cmd}, "cwd": cwd}
             env = {"KB_SESSION": session} if session is not None else None
-            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=env)
+            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=dict(STRICT, **(env or {})))
             return json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
         allowed = [
             ("git push --no-thin origin HEAD:refs/for/feature/x", "dev"),
@@ -655,7 +659,7 @@ class KbHost(unittest.TestCase):
         for cmd in ("git push origin HEAD:refs/for/x", "git push --no-thin origin HEAD:refs/for/feature/x", "git push origin main"):
             self.assertIsNone(g(cmd, None), cmd)
         self.assertEqual(g("git push -f origin main", None), "ask")
-        d = run(REPO, "scripts/hooks/guard_hook.py", env={"KB_SESSION": "dev"}, stdin=json.dumps(
+        d = run(REPO, "scripts/hooks/guard_hook.py", env=dict(STRICT, KB_SESSION="dev"), stdin=json.dumps(
             {"tool_name": "Bash", "tool_input": {"command": "git push -f origin main"}, "cwd": cwd}))[1]
         self.assertIn("无人值守：用 kb_ask 请用户确认，由用户执行", d)
 
@@ -912,10 +916,73 @@ class NewRole(unittest.TestCase):
         self.assertIn("retire_or_merge", out)
 
 
+class GuardDefaultOff(unittest.TestCase):
+    """角色套件只协助、不拦截：guard_hook 默认不出决定，--guard / WORKER_AGENT_GUARD=strict 才恢复严格规则。"""
+
+    CMDS = ("git push --force origin main", "git push -f origin main", "rm -rf build", "sudo rm -rf /opt/x", "rm -rf ~",
+            "kubectl apply -f x.yaml", "helm upgrade x y", "terraform apply", "docker push a/b", "npm publish",
+            "./deploy.sh", "mysql -e 'DROP TABLE t'", "git remote add o x", "git reset --hard HEAD")
+
+    def g(self, evt, env=None, *argv):
+        rc, out = run(REPO, "scripts/hooks/guard_hook.py", *argv, stdin=json.dumps(evt), env=env)
+        self.assertEqual(rc, 0, out)
+        return json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
+
+    def evts(self):
+        R = REPO
+        for c in self.CMDS:
+            yield {"tool_name": "Bash", "cwd": "/opt/p", "tool_input": {"command": c}}
+        yield {"tool_name": "Bash", "cwd": R, "tool_input": {"command": "sed -i '' 's/a/b/' data/skills/frontend/vite.md"}}
+        yield {"tool_name": "Bash", "cwd": "/p", "agent_type": "architect", "tool_input": {"command": "python3 %s/scripts/apply_proposal.py x.md --approve all" % R}}
+        yield {"tool_name": "Write", "cwd": "/p", "tool_input": {"file_path": "/p/.claude/agents/qa-expert.md"}}
+        yield {"tool_name": "Write", "tool_input": {"file_path": os.path.join(R, "agents/qa-expert.md")}}
+        yield {"tool_name": "Edit", "agent_type": "product-manager", "tool_input": {"file_path": "/p/src/a.ts"}}
+
+    def test_default_no_decision(self):
+        for env in (None, {"KB_SESSION": "dev"}, {"KB_SESSION": "steward"}, {"KB_SESSION": "px:demo"},
+                    {"WORKER_AGENT_GUARD": "off"}, {"WORKER_AGENT_GUARD": ""}):
+            for evt in self.evts():
+                self.assertIsNone(self.g(evt, env), "%s %s" % (env, evt))
+
+    def test_strict_switch(self):
+        push_f = {"tool_name": "Bash", "cwd": "/opt/p", "tool_input": {"command": "git push --force origin main"}}
+        kubectl = {"tool_name": "Bash", "cwd": "/opt/p", "tool_input": {"command": "kubectl apply -f x.yaml"}}
+        agent = {"tool_name": "Write", "tool_input": {"file_path": os.path.join(REPO, "agents/qa-expert.md")}}
+        for env, argv in ((STRICT, ()), ({"WORKER_AGENT_GUARD": "STRICT"}, ()), (None, ("--strict",))):
+            self.assertEqual(self.g(push_f, env, *argv), "ask")
+            self.assertEqual(self.g(kubectl, env, *argv), "ask")
+            self.assertEqual(self.g(agent, env, *argv), "deny")
+            self.assertIsNone(self.g({"tool_name": "Bash", "cwd": "/opt/p", "tool_input": {"command": "rm -rf build"}}, env, *argv))
+            self.assertEqual(self.g(push_f, dict(env or {}, KB_SESSION="dev"), *argv), "deny")
+
+    def test_settings_merge_guard_optional(self):
+        d = tempfile.mkdtemp()
+        path = os.path.join(d, "settings.json")
+        # 旧版装进去的 guard_hook 条目：重装按新默认清掉
+        old = {"hooks": {"PreToolUse": [{"matcher": "Bash|Write|Edit|MultiEdit|NotebookEdit", "hooks": [
+            {"type": "command", "command": 'python3 "/x/scripts/hooks/guard_hook.py" # role-agents-suite'}]}]}}
+        json.dump(old, open(path, "w"))
+
+        def cmds():
+            s = json.load(open(path))
+            return [h["command"] for gs in s.get("hooks", {}).values() for g in gs for h in g["hooks"]]
+        rc, out = run(REPO, "scripts/settings_merge.py", "install", path, "--home", REPO)
+        self.assertEqual(rc, 0, out)
+        self.assertFalse([c for c in cmds() if "guard_hook" in c], cmds())
+        self.assertTrue([c for c in cmds() if "usage_hook" in c])
+        self.assertIn("未注册", out)
+        rc, out = run(REPO, "scripts/settings_merge.py", "install", path, "--home", REPO, "--guard")
+        guard = [c for c in cmds() if "guard_hook" in c]
+        self.assertEqual(len(guard), 1, cmds())
+        self.assertIn('guard_hook.py" --strict', guard[0])
+        rc, out = run(REPO, "scripts/settings_merge.py", "install", path, "--home", REPO)
+        self.assertFalse([c for c in cmds() if "guard_hook" in c], cmds())
+
+
 class Round1Fixes(unittest.TestCase):
     def test_guard_bash_protected(self):
         def g(evt):
-            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt))
+            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=STRICT)
             return json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
         R = REPO
         self.assertEqual(g({"tool_name": "Bash", "cwd": R, "tool_input": {"command": "sed -i '' 's/a/b/' data/skills/frontend/vite.md"}}), "deny")
@@ -1041,7 +1108,7 @@ status: 待拍板
     def test_guard_cd_and_writer_scope(self):
         def g(cmd, cwd="/p", agent="backend-engineer"):
             evt = {"tool_name": "Bash", "cwd": cwd, "agent_type": agent, "tool_input": {"command": cmd}}
-            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt))
+            rc, out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=STRICT)
             return json.loads(out)["hookSpecificOutput"]["permissionDecision"] if out.strip() else None
         R = REPO
         self.assertEqual(g("cd %s && echo x >> data/skills/frontend/vite.md" % R), "deny")
@@ -1053,7 +1120,7 @@ status: 待拍板
         self.assertIsNone(g("cd %s && python3 scripts/validate.py" % R))
         for path in ("skills/vite/SKILL.md", "local/skills/x/y.md"):
             evt = {"tool_name": "Write", "cwd": "/p", "tool_input": {"file_path": os.path.join(R, path)}}
-            out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt))[1]
+            out = run(REPO, "scripts/hooks/guard_hook.py", stdin=json.dumps(evt), env=STRICT)[1]
             self.assertEqual(json.loads(out)["hookSpecificOutput"]["permissionDecision"], "deny")
 
     def test_refresh_ignores_unmarked_and_future(self):

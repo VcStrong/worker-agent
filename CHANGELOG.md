@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## 未发布：guard_hook 默认不拦截，只协助（2026-11-19）
+
+- 角色套件只协助、不比 Claude Code 本身管得更严：guard_hook 默认不输出 ask / deny，放行与否完全交给 Claude Code 自己的权限设置（permission mode、allow / deny 规则、auto 模式分类器）。强推、`sudo rm`、kubectl / helm / terraform、发布、删库、写 agent / 技能包、文档角色写代码文件，默认都不再弹确认或拒绝；知识库后台会话（`KB_SESSION`）同样不再 deny。
+- 严格模式改为显式开关：`./install.sh --guard`（注册为 `guard_hook.py --strict`）或环境变量 `WORKER_AGENT_GUARD=strict`，打开后规则与之前完全一致（含 KB_SESSION 下 ask → deny、Gerrit 送审例外）。
+- install.sh / settings_merge.py：默认不再往 settings.json 写 guard_hook；重装（`./install.sh --user --update`）会把旧版装进去的 guard_hook 条目清掉，加 `--guard` 则写成严格模式。旧条目在重装前也已不生效（hook 本身默认不出决定）。
+- replay_guard.py 按严格模式重放；新增测试 `GuardDefaultOff`（默认 / KB_SESSION 下不出决定、strict 开关、settings_merge 默认与 --guard）。
+
 ## 未发布：常用命令不再弹确认（2026-11-17）
 
 - guard_hook：交互会话里普通 `git push`、`rm` / `rmdir` / `find -delete`、`git reset --hard` / `clean -f` / `branch -D` 直接放行（`COMMON_ALLOW`）；强推、`+` 推送、删远端分支、`sudo` 删除、删 `/` 或 `~` 仍弹确认；部署、发布、K8s、删库、发推送、添加远端不变。知识库无人值守会话（`KB_SESSION`）同样放行这些常用命令（免打扰时不被拒），只对交互会话也会 ask 的命令按 kb_guard 细判后拒绝。
